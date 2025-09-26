@@ -54,6 +54,8 @@ class MockSession(BaseModel):
     current_screenshot_index: int = 0
     active_states: List[str] = []
     execution_history: List[Dict[str, Any]] = []
+    initial_states: List[str] = []  # States marked as initial
+    action_snapshots: List[Dict[str, Any]] = []  # Pre-recorded snapshots for integration testing
 
 class MatchResponse(BaseModel):
     found: bool
@@ -348,14 +350,25 @@ mock_sessions: Dict[str, MockSession] = {}
 
 @app.post("/mock/create_session")
 async def create_mock_session(request: MockExecutionRequest):
-    """Create a new mock execution session"""
+    """Create a new mock execution session with state activation"""
     session_id = str(uuid.uuid4())
+
+    # Identify initial states (those with initial=True or first state)
+    initial_states = []
+    for state in request.states:
+        if state.get("initial", False):
+            initial_states.append(state.get("id"))
+
+    # If no states marked as initial, use first state
+    if not initial_states and request.states:
+        initial_states = [request.states[0].get("id")]
 
     session = MockSession(
         session_id=session_id,
         current_screenshot_index=request.starting_screenshot_index,
-        active_states=[],
-        execution_history=[]
+        active_states=initial_states,  # Start with initial states active
+        execution_history=[],
+        initial_states=initial_states
     )
 
     # Store screenshots in session (in production, use proper storage)
@@ -364,12 +377,39 @@ async def create_mock_session(request: MockExecutionRequest):
 
     mock_sessions[session_id] = session
 
+    # Immediately detect states in first screenshot
+    await _detect_and_activate_states(session)
+
     return {
         "session_id": session_id,
         "status": "created",
         "total_screenshots": len(request.screenshots),
-        "total_states": len(request.states)
+        "total_states": len(request.states),
+        "initial_states": initial_states,
+        "active_states": session.active_states
     }
+
+async def _detect_and_activate_states(session: MockSession):
+    """Internal function to detect states and activate them"""
+    if session.current_screenshot_index >= len(session.screenshots):  # type: ignore
+        return
+
+    current_screenshot = session.screenshots[session.current_screenshot_index]  # type: ignore
+
+    # Detect states using real qontinui
+    detection_request = StateDetectionRequest(
+        screenshot=current_screenshot,
+        states=session.states,  # type: ignore
+        similarity=0.8
+    )
+
+    detection_result = await detect_states(detection_request)
+
+    # Activate detected states (StateImage found = state activated)
+    for detected in detection_result["detected_states"]:
+        state_id = detected["state_id"]
+        if state_id not in session.active_states:
+            session.active_states.append(state_id)
 
 @app.post("/mock/detect_current_states")
 async def detect_current_states(session_id: str, similarity: float = 0.8):
@@ -504,6 +544,112 @@ async def get_execution_history(session_id: str):
         "session_id": session_id,
         "history": session.execution_history
     }
+
+@app.post("/mock/add_snapshots/{session_id}")
+async def add_action_snapshots(session_id: str, snapshots: List[Dict[str, Any]]):
+    """Add action snapshots for integration testing"""
+    if session_id not in mock_sessions:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    session = mock_sessions[session_id]
+    session.action_snapshots.extend(snapshots)
+
+    return {
+        "session_id": session_id,
+        "total_snapshots": len(session.action_snapshots)
+    }
+
+@app.post("/mock/execute_action/{session_id}")
+async def execute_mock_action(
+    session_id: str,
+    action_type: str,
+    action_config: Optional[Dict[str, Any]] = None
+):
+    """Execute an action using snapshots (integration testing)"""
+    if session_id not in mock_sessions:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    session = mock_sessions[session_id]
+
+    # Find matching snapshot for current state and action
+    matching_snapshot = _find_matching_snapshot(
+        session.action_snapshots,
+        action_type,
+        session.active_states
+    )
+
+    if not matching_snapshot:
+        # No snapshot - action fails
+        return {
+            "success": False,
+            "message": f"No snapshot for {action_type} in states {session.active_states}",
+            "active_states": session.active_states
+        }
+
+    # Execute based on snapshot
+    result = {
+        "success": matching_snapshot.get("actionSuccess", False),
+        "matches": matching_snapshot.get("matches", []),
+        "active_states": session.active_states,
+        "snapshot_used": matching_snapshot
+    }
+
+    # Handle screenshot transition
+    next_screenshot_id = matching_snapshot.get("nextScreenshotId")
+    if next_screenshot_id:
+        # Find screenshot index by ID
+        for i, screenshot in enumerate(session.screenshots):  # type: ignore
+            # Would need to decode and check ID, simplified here
+            if i != session.current_screenshot_index:  # Simple transition
+                session.current_screenshot_index = i
+                await _detect_and_activate_states(session)
+                break
+
+    # Record in history
+    session.execution_history.append({
+        "type": "action_execution",
+        "action_type": action_type,
+        "snapshot_id": matching_snapshot.get("id"),
+        "success": result["success"],
+        "timestamp": str(uuid.uuid4())
+    })
+
+    return result
+
+def _find_matching_snapshot(
+    snapshots: List[Dict[str, Any]],
+    action_type: str,
+    active_states: List[str]
+) -> Optional[Dict[str, Any]]:
+    """Find matching snapshot using Qontinui's logic"""
+    import random
+
+    # Filter by action type
+    candidates = [s for s in snapshots if s.get("actionType") == action_type]
+
+    if not candidates:
+        return None
+
+    # Prefer exact state matches
+    exact_matches = [
+        s for s in candidates
+        if s.get("stateId") in active_states
+    ]
+
+    if exact_matches:
+        return random.choice(exact_matches)
+
+    # Try overlapping active states
+    overlap_matches = [
+        s for s in candidates
+        if any(state in active_states for state in s.get("activeStates", []))
+    ]
+
+    if overlap_matches:
+        return random.choice(overlap_matches)
+
+    # Fall back to any snapshot
+    return random.choice(candidates) if candidates else None
 
 @app.delete("/mock/session/{session_id}")
 async def delete_session(session_id: str):
