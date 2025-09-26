@@ -49,6 +49,12 @@ class MockExecutionRequest(BaseModel):
     states: List[Dict[str, Any]]
     starting_screenshot_index: int = 0
 
+class MockSession(BaseModel):
+    session_id: str
+    current_screenshot_index: int = 0
+    active_states: List[str] = []
+    execution_history: List[Dict[str, Any]] = []
+
 class MatchResponse(BaseModel):
     found: bool
     region: Optional[Dict[str, int]]  # {x, y, width, height}
@@ -332,6 +338,186 @@ async def validate_location(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+# === MOCK EXECUTION ENDPOINTS ===
+
+import uuid
+from typing import Dict
+
+# Store mock sessions in memory (in production, use Redis or similar)
+mock_sessions: Dict[str, MockSession] = {}
+
+@app.post("/mock/create_session")
+async def create_mock_session(request: MockExecutionRequest):
+    """Create a new mock execution session"""
+    session_id = str(uuid.uuid4())
+
+    session = MockSession(
+        session_id=session_id,
+        current_screenshot_index=request.starting_screenshot_index,
+        active_states=[],
+        execution_history=[]
+    )
+
+    # Store screenshots in session (in production, use proper storage)
+    session.screenshots = request.screenshots  # type: ignore
+    session.states = request.states  # type: ignore
+
+    mock_sessions[session_id] = session
+
+    return {
+        "session_id": session_id,
+        "status": "created",
+        "total_screenshots": len(request.screenshots),
+        "total_states": len(request.states)
+    }
+
+@app.post("/mock/detect_current_states")
+async def detect_current_states(session_id: str, similarity: float = 0.8):
+    """Detect states in the current screenshot of the session"""
+    if session_id not in mock_sessions:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    session = mock_sessions[session_id]
+
+    # Get current screenshot
+    if session.current_screenshot_index >= len(session.screenshots):  # type: ignore
+        return {
+            "error": "No more screenshots",
+            "detected_states": []
+        }
+
+    current_screenshot = session.screenshots[session.current_screenshot_index]  # type: ignore
+
+    # Detect states using real qontinui
+    detection_request = StateDetectionRequest(
+        screenshot=current_screenshot,
+        states=session.states,  # type: ignore
+        similarity=similarity
+    )
+
+    detection_result = await detect_states(detection_request)
+
+    # Update active states
+    session.active_states = [ds["state_id"] for ds in detection_result["detected_states"]]
+
+    # Add to execution history
+    session.execution_history.append({
+        "type": "state_detection",
+        "screenshot_index": session.current_screenshot_index,
+        "detected_states": session.active_states,
+        "timestamp": str(uuid.uuid4())  # Would be actual timestamp
+    })
+
+    return {
+        "session_id": session_id,
+        "current_screenshot_index": session.current_screenshot_index,
+        "active_states": session.active_states,
+        "detection_result": detection_result
+    }
+
+@app.post("/mock/next_screenshot")
+async def next_screenshot(session_id: str):
+    """Move to the next screenshot in the session"""
+    if session_id not in mock_sessions:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    session = mock_sessions[session_id]
+
+    if session.current_screenshot_index < len(session.screenshots) - 1:  # type: ignore
+        session.current_screenshot_index += 1
+
+        # Add to history
+        session.execution_history.append({
+            "type": "navigation",
+            "action": "next_screenshot",
+            "new_index": session.current_screenshot_index
+        })
+
+        return {
+            "session_id": session_id,
+            "current_screenshot_index": session.current_screenshot_index,
+            "has_next": session.current_screenshot_index < len(session.screenshots) - 1,  # type: ignore
+            "has_previous": session.current_screenshot_index > 0
+        }
+    else:
+        return {
+            "error": "No more screenshots",
+            "current_screenshot_index": session.current_screenshot_index
+        }
+
+@app.post("/mock/previous_screenshot")
+async def previous_screenshot(session_id: str):
+    """Move to the previous screenshot in the session"""
+    if session_id not in mock_sessions:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    session = mock_sessions[session_id]
+
+    if session.current_screenshot_index > 0:
+        session.current_screenshot_index -= 1
+
+        # Add to history
+        session.execution_history.append({
+            "type": "navigation",
+            "action": "previous_screenshot",
+            "new_index": session.current_screenshot_index
+        })
+
+        return {
+            "session_id": session_id,
+            "current_screenshot_index": session.current_screenshot_index,
+            "has_next": True,
+            "has_previous": session.current_screenshot_index > 0
+        }
+    else:
+        return {
+            "error": "Already at first screenshot",
+            "current_screenshot_index": session.current_screenshot_index
+        }
+
+@app.get("/mock/session_status/{session_id}")
+async def get_session_status(session_id: str):
+    """Get the current status of a mock session"""
+    if session_id not in mock_sessions:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    session = mock_sessions[session_id]
+
+    return {
+        "session_id": session_id,
+        "current_screenshot_index": session.current_screenshot_index,
+        "total_screenshots": len(session.screenshots),  # type: ignore
+        "active_states": session.active_states,
+        "total_states": len(session.states),  # type: ignore
+        "history_length": len(session.execution_history)
+    }
+
+@app.get("/mock/execution_history/{session_id}")
+async def get_execution_history(session_id: str):
+    """Get the execution history of a mock session"""
+    if session_id not in mock_sessions:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    session = mock_sessions[session_id]
+
+    return {
+        "session_id": session_id,
+        "history": session.execution_history
+    }
+
+@app.delete("/mock/session/{session_id}")
+async def delete_session(session_id: str):
+    """Delete a mock session"""
+    if session_id not in mock_sessions:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    del mock_sessions[session_id]
+
+    return {
+        "session_id": session_id,
+        "status": "deleted"
+    }
+
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
@@ -339,7 +525,8 @@ async def health_check():
         "status": "healthy",
         "service": "qontinui-api",
         "version": "1.0.0",
-        "qontinui_available": True
+        "qontinui_available": True,
+        "active_sessions": len(mock_sessions)
     }
 
 if __name__ == "__main__":
