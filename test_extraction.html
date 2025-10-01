@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Pattern Extraction Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        button { padding: 10px 20px; font-size: 16px; cursor: pointer; }
+        pre { background: #f4f4f4; padding: 10px; border-radius: 5px; }
+        .success { color: green; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <h1>Pattern Extraction Test</h1>
+
+    <h2>1. Simple Test (No Screenshots)</h2>
+    <button onclick="testSimple()">Test Simple Extraction</button>
+    <pre id="simple-result"></pre>
+
+    <h2>2. Test with Mock Data</h2>
+    <button onclick="testWithMockData()">Test with Mock Screenshots</button>
+    <pre id="mock-result"></pre>
+
+    <h2>3. Upload Image and Test</h2>
+    <input type="file" id="imageFile" accept="image/*" />
+    <button onclick="testWithImage()">Test with Uploaded Image</button>
+    <pre id="image-result"></pre>
+
+    <script>
+        // Simple test without screenshots
+        async function testSimple() {
+            const resultElem = document.getElementById('simple-result');
+            resultElem.textContent = 'Testing...';
+
+            try {
+                const response = await fetch('http://localhost:8000/api/masked-patterns/extract-masked', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        state_image_id: 'test',
+                        pattern_name: 'Test_Pattern_Simple',
+                        config: {
+                            similarityThreshold: 0.85,
+                            minActivePixels: 100,
+                            colorAveraging: 'weighted',
+                            morphologicalOps: {
+                                enabled: true,
+                                erosionSize: 1,
+                                dilationSize: 2
+                            }
+                        }
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const result = await response.json();
+                resultElem.innerHTML = '<span class="success">✓ Success!</span>\n' + JSON.stringify(result, null, 2);
+            } catch (error) {
+                resultElem.innerHTML = '<span class="error">✗ Error:</span> ' + error.message;
+            }
+        }
+
+        // Test with mock base64 data
+        async function testWithMockData() {
+            const resultElem = document.getElementById('mock-result');
+            resultElem.textContent = 'Creating mock data...';
+
+            // Create a small canvas with a simple pattern
+            const canvas = document.createElement('canvas');
+            canvas.width = 100;
+            canvas.height = 100;
+            const ctx = canvas.getContext('2d');
+
+            // Draw a simple pattern
+            ctx.fillStyle = 'blue';
+            ctx.fillRect(20, 20, 60, 60);
+            ctx.fillStyle = 'red';
+            ctx.fillRect(40, 40, 20, 20);
+
+            // Convert to base64
+            const base64 = canvas.toDataURL('image/png').split(',')[1];
+
+            resultElem.textContent = 'Sending request...';
+
+            try {
+                const response = await fetch('http://localhost:8000/api/masked-patterns/extract-masked', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        state_image_id: 'test',
+                        pattern_name: 'Test_Pattern_Mock',
+                        config: {
+                            similarityThreshold: 0.85,
+                            minActivePixels: 100,
+                            colorAveraging: 'weighted',
+                            morphologicalOps: {
+                                enabled: true,
+                                erosionSize: 1,
+                                dilationSize: 2
+                            }
+                        },
+                        screenshots: [base64, base64, base64], // Same image 3 times
+                        regions: [
+                            {x: 10, y: 10, width: 80, height: 80},
+                            {x: 10, y: 10, width: 80, height: 80},
+                            {x: 10, y: 10, width: 80, height: 80}
+                        ]
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+                }
+
+                const result = await response.json();
+                resultElem.innerHTML = '<span class="success">✓ Success!</span>\n' + JSON.stringify(result, null, 2);
+            } catch (error) {
+                resultElem.innerHTML = '<span class="error">✗ Error:</span> ' + error.message;
+                console.error('Full error:', error);
+            }
+        }
+
+        // Test with uploaded image
+        async function testWithImage() {
+            const resultElem = document.getElementById('image-result');
+            const fileInput = document.getElementById('imageFile');
+
+            if (!fileInput.files[0]) {
+                resultElem.innerHTML = '<span class="error">Please select an image file first</span>';
+                return;
+            }
+
+            resultElem.textContent = 'Processing image...';
+
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                const base64 = e.target.result.split(',')[1];
+
+                resultElem.textContent = 'Sending request...';
+
+                try {
+                    const response = await fetch('http://localhost:8000/api/masked-patterns/extract-masked', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            state_image_id: 'test',
+                            pattern_name: 'Test_Pattern_Upload',
+                            config: {
+                                similarityThreshold: 0.85,
+                                minActivePixels: 100,
+                                colorAveraging: 'weighted',
+                                morphologicalOps: {
+                                    enabled: true,
+                                    erosionSize: 1,
+                                    dilationSize: 2
+                                }
+                            },
+                            screenshots: [base64],
+                            regions: [{x: 50, y: 50, width: 100, height: 100}]
+                        })
+                    });
+
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+                    }
+
+                    const result = await response.json();
+                    resultElem.innerHTML = '<span class="success">✓ Success!</span>\n' + JSON.stringify(result, null, 2);
+                } catch (error) {
+                    resultElem.innerHTML = '<span class="error">✗ Error:</span> ' + error.message;
+                    console.error('Full error:', error);
+                }
+            };
+
+            reader.readAsDataURL(fileInput.files[0]);
+        }
+    </script>
+</body>
+</html>

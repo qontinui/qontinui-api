@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CORS Test</title>
+</head>
+<body>
+    <h1>CORS Test</h1>
+    <button onclick="testCORS()">Test CORS Request</button>
+    <pre id="result"></pre>
+
+    <script>
+        async function testCORS() {
+            const resultElem = document.getElementById('result');
+            resultElem.textContent = 'Testing CORS...';
+
+            try {
+                console.log('Starting fetch...');
+                const response = await fetch('http://localhost:8000/api/masked-patterns/extract-masked', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        state_image_id: 'test',
+                        pattern_name: 'CORS_Test',
+                        config: {
+                            similarityThreshold: 0.85,
+                            minActivePixels: 100,
+                            colorAveraging: 'weighted',
+                            morphologicalOps: {
+                                enabled: true,
+                                erosionSize: 1,
+                                dilationSize: 2
+                            }
+                        }
+                    })
+                });
+
+                console.log('Fetch completed, status:', response.status);
+                const data = await response.json();
+                resultElem.textContent = 'Success!\n' + JSON.stringify(data, null, 2);
+            } catch (error) {
+                console.error('Fetch error:', error);
+                resultElem.textContent = 'Error: ' + error.message;
+            }
+        }
+    </script>
+</body>
+</html>

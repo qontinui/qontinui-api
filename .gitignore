@@ -1,0 +1,102 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environments
+venv/
+.venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Poetry
+poetry.lock
+
+# Testing
+.tox/
+.nox/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+*.log
+.cache
+nosetests.xml
+coverage/
+htmlcov/
+.pytest_cache/
+
+# Type checking
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+.pytype/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+*.log
+api.log
+api_debug.log
+backend.log
+backend_new.log
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+users.db
+users.json
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Generated files
+*.png
+*.jpg
+*.jpeg
+variance_map.png
+
+# Backup files
+*.bak
+*.backup
+
+# OS specific (WSL2/Windows)
+.DS_Store
+Thumbs.db
+desktop.ini
+$RECYCLE.BIN/
+
+# Project specific
+# Add any project-specific files to ignore below

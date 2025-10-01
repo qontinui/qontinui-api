@@ -1,0 +1,81 @@
+[tool.poetry]
+name = "qontinui-api"
+version = "0.1.0"
+description = "Qontinui API Service"
+authors = ["Your Name <you@example.com>"]
+readme = "README.md"
+packages = []
+
+[tool.poetry.dependencies]
+python = "^3.12"
+fastapi = "^0.104.1"
+uvicorn = {extras = ["standard"], version = "^0.24.0"}
+python-multipart = "^0.0.6"
+pillow = "^10.2"
+numpy = "^1.24.0,<2"
+opencv-python = "^4.9"
+pydantic = "^2.5.0"
+python-jose = {extras = ["cryptography"], version = "^3.3.0"}
+cors = "^1.0.1"
+qontinui = {path = "../qontinui", develop = true}
+passlib = {extras = ["bcrypt"], version = "^1.7.4"}
+sqlalchemy = "^2.0.43"
+email-validator = "^2.3.0"
+easyocr = "^1.7.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.0"
+pytest-cov = "^5.0"
+black = "^24.0"
+ruff = "^0.6"
+mypy = "^1.8"
+pre-commit = "^3.6"
+flake8 = "^7.3.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 100
+target-version = ['py312']
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "I",  # isort
+    "B",  # flake8-bugbear
+    "C4", # flake8-comprehensions
+    "UP", # pyupgrade
+]
+ignore = [
+    "E501",  # line too long (handled by black)
+    "B008",  # do not perform function calls in argument defaults
+    "C901",  # too complex
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["qontinui"]
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
+plugins = ["pydantic.mypy"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+addopts = [
+    "--cov=.",
+    "--cov-report=term-missing",
+    "--cov-report=xml",
+    "-v",
+]
