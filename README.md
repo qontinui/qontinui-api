@@ -68,3 +68,17 @@ When running, interactive API documentation is available at:
 ## Integration with Frontend
 
 The API accepts base64-encoded images and returns JSON responses with match regions, scores, and detection results. Perfect for integration with the qontinui-web frontend for visual testing and validation.
+
+## Contributing
+
+We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+Please note that this project is released with a [Code of Conduct](CODE_OF_CONDUCT.md). By participating in this project you agree to abide by its terms.
+
+## License
+
+This project is open source. See the [LICENSE](LICENSE) file for details.
+
+## Contact
+
+For questions or issues, please contact jspinak@hotmail.com or open an issue on GitHub.

@@ -1,10 +1,10 @@
 fastapi==0.104.1
 uvicorn[standard]==0.24.0
 python-multipart==0.0.6
-pillow==10.1.0
-numpy==1.24.3
-opencv-python==4.8.1.78
-pydantic==2.5.0
+pillow>=10.2
+numpy==1.26.4
+opencv-python>=4.9
+pydantic>=2.11.9
 python-jose[cryptography]==3.3.0
 cors==1.0.1
 
