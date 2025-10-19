@@ -16,6 +16,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image as PILImage
 from pydantic import BaseModel
 
+from app.routes.integration_testing import router as integration_testing_router
+from app.routes.snapshot_search import router as snapshot_search_router
+
+# Import Snapshot API routers
+from app.routes.snapshots import router as snapshots_router
+
 # Authentication is handled by qontinui-web/backend
 # This API is stateless and focuses on qontinui library operations
 # Import Mask and Pattern API router
@@ -33,9 +39,7 @@ from qontinui.model.state import State, StateImage
 from qontinui.model.state.state_store import StateStore
 from qontinui.state_management.manager import QontinuiStateManager
 
-# Import Scheduler API router
-from scheduler_api import router as scheduler_router
-
+# Scheduler API removed - belongs in qontinui-web/backend with user auth
 # Import semantic API router
 from semantic_api import router as semantic_router
 
@@ -59,8 +63,12 @@ app.include_router(masked_patterns_router, prefix="/api")
 # Include Mask and Pattern router
 app.include_router(mask_pattern_router, prefix="/api")
 
-# Include Scheduler router
-app.include_router(scheduler_router, prefix="/api/v1")
+# Include Snapshot routers
+app.include_router(snapshots_router, prefix="/api")
+app.include_router(snapshot_search_router, prefix="/api")
+
+# Include Integration Testing router
+app.include_router(integration_testing_router, prefix="/api")
 
 
 # All user/project management endpoints are handled by qontinui-web/backend
