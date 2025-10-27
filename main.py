@@ -31,6 +31,11 @@ from mask_pattern_api import router as mask_pattern_router
 from masked_patterns_api import router as masked_patterns_router
 from qontinui.actions import FindOptions
 
+# Import Pydantic schemas from qontinui library
+from qontinui.config.schema import Action as ConfigAction
+from qontinui.config.schema import State as ConfigState
+from qontinui.config.schema import Workflow
+
 # Import actual qontinui library
 from qontinui.find import Find
 from qontinui.model.element import Image, Pattern, Region
@@ -119,7 +124,7 @@ class TransitionRequest(BaseModel):
 class MockSession(BaseModel):
     session_id: str
     screenshots: list[str] = []  # base64 encoded screenshots
-    states: list[dict[str, Any]] = []  # State definitions
+    states: list[ConfigState] = []  # State definitions using Pydantic schema
     current_screenshot_index: int = 0
     active_states: list[str] = []
     execution_history: list[dict[str, Any]] = []
@@ -1025,22 +1030,22 @@ async def test_pattern_matching(request: FindRequest):
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-# === PROCESS EXECUTION ENDPOINTS ===
+# === WORKFLOW EXECUTION ENDPOINTS ===
 
 
-class ProcessExecutionRequest(BaseModel):
-    process: dict[str, Any]  # Process definition with transitions and actions
+class WorkflowExecutionRequest(BaseModel):
+    workflow: Workflow  # Workflow definition using Pydantic schema
     screenshots: list[str]  # base64 encoded screenshots
-    states: list[dict[str, Any]]  # State definitions
+    states: list[ConfigState]  # State definitions using Pydantic schema
     categories: list[dict[str, Any]] = []  # Category definitions
     mode: str = "hybrid"  # "hybrid" or "full_mock"
     similarity: float = 0.8
 
 
-class ProcessExecutionResponse(BaseModel):
+class WorkflowExecutionResponse(BaseModel):
     session_id: str
-    process_id: str
-    process_name: str
+    workflow_id: str
+    workflow_name: str
     category_name: str = "Uncategorized"
     status: str  # "running", "completed", "failed"
     current_action: int = 0
@@ -1048,28 +1053,28 @@ class ProcessExecutionResponse(BaseModel):
     results: list[dict[str, Any]] = []
 
 
-@app.post("/process/execute")
-async def execute_process(request: ProcessExecutionRequest):
-    """Execute a process in hybrid mock mode"""
-    # Create a mock session for the process
+@app.post("/workflow/execute")
+async def execute_workflow(request: WorkflowExecutionRequest):
+    """Execute a workflow in hybrid mock mode"""
+    # Create a mock session for the workflow
     session_id = str(uuid.uuid4())
 
-    # Extract initial states from process
-    # Priority: 1. Process's configured initialStates, 2. States marked as initial, 3. First state
+    # Extract initial states from workflow
+    # Priority: 1. Workflow's configured initialStates, 2. States marked as initial, 3. First state
     initial_states = []
 
-    # Check if process has initialStates configured
-    if request.process.get("initialStates"):
-        initial_states = request.process.get("initialStates")
+    # Check if workflow has initialStates configured
+    if hasattr(request.workflow, "initial_states") and request.workflow.initial_states:
+        initial_states = request.workflow.initial_states
     else:
-        # Fall back to states marked as initial
+        # Fall back to states marked as is_initial
         for state in request.states:
-            if state.get("initial", False):
-                initial_states.append(state.get("id"))
+            if state.is_initial:
+                initial_states.append(state.id)
 
     # If still no initial states, use the first state as fallback
     if not initial_states and request.states:
-        initial_states = [request.states[0].get("id")]
+        initial_states = [request.states[0].id]
 
     # Create session
     session = MockSession(
@@ -1085,22 +1090,22 @@ async def execute_process(request: ProcessExecutionRequest):
 
     mock_sessions[session_id] = session
 
-    # Count total actions in process
-    total_actions = len(request.process.get("actions", []))
+    # Count total actions in workflow
+    total_actions = len(request.workflow.actions)
 
     # Get category name
     category_name = "Uncategorized"
-    if request.process.get("category"):
+    if request.workflow.category:
         for cat in request.categories:
-            if cat.get("id") == request.process.get("category"):
+            if cat.get("id") == request.workflow.category:
                 category_name = cat.get("name", "Uncategorized")
                 break
 
     # Initial response
-    response = ProcessExecutionResponse(
+    response = WorkflowExecutionResponse(
         session_id=session_id,
-        process_id=request.process.get("id", ""),
-        process_name=request.process.get("name", ""),
+        workflow_id=request.workflow.id,
+        workflow_name=request.workflow.name,
         category_name=category_name,
         status="running",
         current_action=0,
@@ -1114,28 +1119,31 @@ async def execute_process(request: ProcessExecutionRequest):
     return response
 
 
-@app.post("/process/execute_step/{session_id}")
-async def execute_process_step(session_id: str, action: dict[str, Any]):
-    """Execute a single action step in a process"""
+@app.post("/workflow/execute_step/{session_id}")
+async def execute_workflow_step(session_id: str, action: ConfigAction):
+    """Execute a single action step in a workflow"""
     if session_id not in mock_sessions:
         raise HTTPException(status_code=404, detail="Session not found")
 
     session = mock_sessions[session_id]
 
     # Determine execution mode
-    action_type = action.get("type", "")
+    action_type = action.type
     success = False
     message = ""
     duration = 100
 
     if action_type.lower() in ["find", "find_state_image"]:
         # Use real pattern matching for find actions
-        current_screenshot = session.screenshots[session.current_screenshot_index]  # type: ignore
+        current_screenshot = session.screenshots[session.current_screenshot_index]
 
-        # Get the image for the action (could be from config.imageId or config.objectId)
-        image_id = action.get("config", {}).get("imageId") or action.get("config", {}).get(
-            "objectId"
-        )
+        # Get the image for the action from config
+        image_id = None
+        if hasattr(action.config, "image_id"):
+            image_id = action.config.image_id
+        elif hasattr(action.config, "object_id"):
+            image_id = action.config.object_id
+
         state_image = None
 
         if image_id:
@@ -1147,21 +1155,26 @@ async def execute_process_step(session_id: str, action: dict[str, Any]):
 
             # If not found, check state images
             if not state_image:
-                for state in session.states:  # type: ignore
-                    for img in state.get("stateImages", []):
-                        if img.get("id") == image_id:
-                            state_image = img.get("image") or img.get("data")
-                            break
+                for state in session.states:
+                    if hasattr(state, "state_images"):
+                        for img in state.state_images:
+                            if img.id == image_id:
+                                state_image = img.image or getattr(img, "data", None)
+                                break
                     if state_image:
                         break
 
         if state_image:
             try:
                 # Use real pattern matching
+                similarity = 0.8
+                if hasattr(action.config, "similarity"):
+                    similarity = action.config.similarity
+
                 request_data = FindRequest(
                     screenshot=current_screenshot,
                     template=state_image,
-                    similarity=action.get("similarity", 0.8),
+                    similarity=similarity,
                     find_all=False,
                 )
                 result = await find_image(request_data)
@@ -1184,7 +1197,7 @@ async def execute_process_step(session_id: str, action: dict[str, Any]):
 
     # Create result
     result = {
-        "actionId": action.get("id"),
+        "actionId": action.id,
         "actionType": action_type,
         "success": success,
         "message": message,
@@ -1198,9 +1211,9 @@ async def execute_process_step(session_id: str, action: dict[str, Any]):
     return result
 
 
-@app.get("/process/status/{session_id}")
-async def get_process_status(session_id: str):
-    """Get the status of a process execution"""
+@app.get("/workflow/status/{session_id}")
+async def get_workflow_status(session_id: str):
+    """Get the status of a workflow execution"""
     if session_id not in mock_sessions:
         raise HTTPException(status_code=404, detail="Session not found")
 
@@ -1221,9 +1234,9 @@ async def get_process_status(session_id: str):
     }
 
 
-@app.post("/process/complete/{session_id}")
-async def complete_process(session_id: str):
-    """Mark a process execution as complete"""
+@app.post("/workflow/complete/{session_id}")
+async def complete_workflow(session_id: str):
+    """Mark a workflow execution as complete"""
     if session_id not in mock_sessions:
         raise HTTPException(status_code=404, detail="Session not found")
 
