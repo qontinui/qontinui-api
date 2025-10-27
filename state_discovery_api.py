@@ -299,6 +299,9 @@ async def start_analysis(request: AnalysisRequest, background_tasks: BackgroundT
     if not upload:
         raise HTTPException(status_code=404, detail="Upload not found")
 
+    # Validate request using Pydantic (automatic via FastAPI)
+    # Additional validation can be done here if needed
+
     # Create analysis ID
     analysis_id = f"analysis_{uuid.uuid4().hex[:12]}"
 
@@ -331,23 +334,26 @@ async def start_analysis(request: AnalysisRequest, background_tasks: BackgroundT
             f"Cropped {len(screenshots)} screenshots, new size: {screenshots[0].shape if screenshots else 'N/A'}"
         )
 
-    # Convert config
+    # Convert Pydantic config model to AnalysisConfig dataclass
     # Note: similarity_threshold from UI is converted to color_tolerance in frontend
     # The color_tolerance is what controls pixel matching tolerance in the analyzer
-    config = AnalysisConfig(
-        min_region_size=tuple(request.config.min_region_size),
-        max_region_size=tuple(request.config.max_region_size),
-        color_tolerance=request.config.color_tolerance,  # Derived from similarity_threshold in UI
-        stability_threshold=request.config.stability_threshold,
-        variance_threshold=request.config.variance_threshold,
-        min_screenshots_present=request.config.min_screenshots_present,
-        processing_mode=request.config.processing_mode,
-        enable_rectangle_decomposition=request.config.enable_rectangle_decomposition,
-        enable_cooccurrence_analysis=request.config.enable_cooccurrence_analysis,
-    )
-    # Store similarity_threshold for masked pattern analysis
-    if hasattr(config, "similarity_threshold") and hasattr(request.config, "similarity_threshold"):
-        config.similarity_threshold = request.config.similarity_threshold
+    try:
+        config_dict = request.config.model_dump()
+        config = AnalysisConfig(
+            min_region_size=tuple(config_dict["min_region_size"]),
+            max_region_size=tuple(config_dict["max_region_size"]),
+            color_tolerance=config_dict["color_tolerance"],  # Derived from similarity_threshold in UI
+            stability_threshold=config_dict["stability_threshold"],
+            variance_threshold=config_dict["variance_threshold"],
+            min_screenshots_present=config_dict["min_screenshots_present"],
+            processing_mode=config_dict["processing_mode"],
+            enable_rectangle_decomposition=config_dict["enable_rectangle_decomposition"],
+            enable_cooccurrence_analysis=config_dict["enable_cooccurrence_analysis"],
+            similarity_threshold=config_dict.get("similarity_threshold", 0.95),
+        )
+    except (KeyError, TypeError, ValueError) as e:
+        logger.error(f"Failed to convert analysis config: {e}")
+        raise HTTPException(status_code=400, detail=f"Invalid analysis configuration: {e}") from e
 
     # Start analysis in background
     print(f"[DEBUG] Adding background task for analysis {analysis_id}")

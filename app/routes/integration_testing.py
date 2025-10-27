@@ -21,7 +21,7 @@ router = APIRouter(prefix="/integration-testing", tags=["integration-testing"])
 
 
 class ActionSpec(BaseModel):
-    """Specification for an action in a process."""
+    """Specification for an action in a workflow."""
 
     type: str = Field(..., description="Action type: FIND, CLICK, TYPE, etc.")
     pattern_id: str | None = Field(None, description="Pattern identifier for FIND actions")
@@ -30,10 +30,10 @@ class ActionSpec(BaseModel):
 
 
 class MockExecutionRequest(BaseModel):
-    """Request to execute a process in mock mode."""
+    """Request to execute a workflow in mock mode."""
 
-    process_id: str = Field(..., description="Process identifier")
-    process_name: str = Field(..., description="Process name")
+    workflow_id: str = Field(..., description="Workflow identifier")
+    workflow_name: str = Field(..., description="Workflow name")
     snapshot_run_ids: list[str] = Field(
         ...,
         description="Snapshot run IDs to use for mock data (can specify multiple for larger data pool)",
@@ -41,8 +41,7 @@ class MockExecutionRequest(BaseModel):
     initial_states: list[str] = Field(..., description="Initial active states")
     actions: list[ActionSpec] = Field(..., description="List of actions to execute")
 
-    # Backward compatibility: accept single snapshot_run_id and convert to list
-    snapshot_run_id: str | None = Field(None, description="(Deprecated) Single snapshot run ID")
+    snapshot_run_id: str | None = Field(None, description="Single snapshot run ID (converted to list)")
 
     def __init__(self, **data):
         # Convert single snapshot_run_id to snapshot_run_ids list
@@ -68,10 +67,10 @@ class ActionVisualizationResponse(BaseModel):
 
 
 class MockExecutionResponse(BaseModel):
-    """Result of mock process execution."""
+    """Result of mock workflow execution."""
 
-    process_id: str
-    process_name: str
+    workflow_id: str
+    workflow_name: str
     start_time: str
     end_time: str | None
     total_duration_ms: float
@@ -104,13 +103,13 @@ class StateScreenshotListResponse(BaseModel):
 
 
 class CoverageAnalysisRequest(BaseModel):
-    """Request to analyze coverage for a process."""
+    """Request to analyze coverage for a workflow."""
 
-    process_id: str = Field(..., description="Process identifier")
-    process_name: str = Field(..., description="Process name")
+    workflow_id: str = Field(..., description="Workflow identifier")
+    workflow_name: str = Field(..., description="Workflow name")
     snapshot_run_ids: list[str] = Field(..., description="Snapshot run IDs to analyze")
     expected_states: list[str] | None = Field(
-        None, description="Optional list of states expected in the process"
+        None, description="Optional list of states expected in the workflow"
     )
 
 
@@ -153,8 +152,8 @@ class CoverageGapResponse(BaseModel):
 class CoverageReportResponse(BaseModel):
     """Complete coverage analysis report."""
 
-    process_id: str
-    process_name: str
+    workflow_id: str
+    workflow_name: str
     snapshot_run_ids: list[str]
     analysis_time: str
     overall_coverage_percentage: float
@@ -202,12 +201,12 @@ class StartScreenshotResponse(BaseModel):
 
 
 @router.post("/execute", response_model=MockExecutionResponse)
-def execute_mock_process(
+def execute_mock_workflow(
     request: MockExecutionRequest,
     db: Session = Depends(get_db),
 ):
     """
-    Execute a process in mock mode using recorded snapshots.
+    Execute a workflow in mock mode using recorded snapshots.
 
     This endpoint:
     1. Loads action histories from the specified snapshot run(s)
@@ -273,7 +272,7 @@ def execute_mock_process(
     # Merge all screenshot registries into one
     merged_registry = _merge_screenshot_registries(all_screenshot_registries)
 
-    # Execute process in mock mode
+    # Execute workflow in mock mode
     try:
         from qontinui.mock.mock_executor import MockExecutor
 
@@ -282,17 +281,17 @@ def execute_mock_process(
             screenshot_registry=merged_registry,
         )
 
-        result = executor.execute_process(
-            process_id=request.process_id,
-            process_name=request.process_name,
+        result = executor.execute_workflow(
+            workflow_id=request.workflow_id,
+            workflow_name=request.workflow_name,
             actions=[action.dict() for action in request.actions],
             initial_states=set(request.initial_states),
         )
 
         # Convert to response model
         return MockExecutionResponse(
-            process_id=result.process_id,
-            process_name=result.process_name,
+            workflow_id=result.workflow_id,
+            workflow_name=result.workflow_name,
             start_time=result.start_time.isoformat(),
             end_time=result.end_time.isoformat() if result.end_time else None,
             total_duration_ms=result.total_duration_ms,
@@ -788,7 +787,7 @@ def analyze_coverage(
     db: Session = Depends(get_db),
 ):
     """
-    Analyze state coverage for a process across snapshot runs.
+    Analyze state coverage for a workflow across snapshot runs.
 
     This endpoint analyzes:
     - Which states are covered/uncovered
@@ -811,16 +810,16 @@ def analyze_coverage(
     try:
         analyzer = StateCoverageAnalyzer(db)
         report = analyzer.analyze_coverage(
-            process_id=request.process_id,
-            process_name=request.process_name,
+            workflow_id=request.workflow_id,
+            workflow_name=request.workflow_name,
             snapshot_run_ids=request.snapshot_run_ids,
             expected_states=request.expected_states,
         )
 
         # Convert to response model
         return CoverageReportResponse(
-            process_id=report.process_id,
-            process_name=report.process_name,
+            workflow_id=report.workflow_id,
+            workflow_name=report.workflow_name,
             snapshot_run_ids=report.snapshot_run_ids,
             analysis_time=report.analysis_time.isoformat(),
             overall_coverage_percentage=report.overall_coverage_percentage,
@@ -875,9 +874,9 @@ def analyze_coverage(
         raise HTTPException(status_code=500, detail=f"Coverage analysis failed: {str(e)}") from e
 
 
-@router.get("/coverage/report/{process_id}", response_model=CoverageReportResponse)
+@router.get("/coverage/report/{workflow_id}", response_model=CoverageReportResponse)
 def get_coverage_report(
-    process_id: str,
+    workflow_id: str,
     snapshot_run_ids: str = Query(..., description="Comma-separated list of snapshot run IDs"),
     expected_states: str | None = Query(
         None, description="Optional comma-separated expected states"
@@ -885,13 +884,13 @@ def get_coverage_report(
     db: Session = Depends(get_db),
 ):
     """
-    Get coverage report for a process.
+    Get coverage report for a workflow.
 
     This is a convenience endpoint that wraps analyze_coverage
     with query parameters instead of a request body.
 
     Args:
-        process_id: Process identifier
+        workflow_id: Workflow identifier
         snapshot_run_ids: Comma-separated snapshot run IDs
         expected_states: Optional comma-separated expected states
         db: Database session
@@ -916,8 +915,8 @@ def get_coverage_report(
 
     # Create analysis request
     request = CoverageAnalysisRequest(
-        process_id=process_id,
-        process_name=process_id,  # Use process_id as name for GET requests
+        workflow_id=workflow_id,
+        workflow_name=workflow_id,  # Use workflow_id as name for GET requests
         snapshot_run_ids=run_ids,
         expected_states=states,
     )

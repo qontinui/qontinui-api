@@ -1,17 +1,26 @@
 """Service for syncing snapshot files to database."""
 
 import json
+import logging
 from datetime import datetime
 from pathlib import Path
 
 from sqlalchemy.orm import Session
 
+from app.models.config_schemas import (
+    ValidationError,
+    validate_action_log_item,
+    validate_pattern_metadata,
+    validate_snapshot_metadata,
+)
 from app.models.snapshot import (
     SnapshotAction,
     SnapshotMatch,
     SnapshotPattern,
     SnapshotRun,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class SnapshotSyncService:
@@ -59,11 +68,17 @@ class SnapshotSyncService:
             raise FileNotFoundError(f"metadata.json not found in {snapshot_dir}")
 
         with open(metadata_file) as f:
-            metadata = json.load(f)
+            metadata_raw = json.load(f)
 
-        run_id = metadata.get("run_id")
-        if not run_id:
-            raise ValueError("run_id not found in metadata.json")
+        # Validate metadata using Pydantic schema
+        try:
+            metadata_validated = validate_snapshot_metadata(metadata_raw, str(metadata_file))
+        except ValidationError as e:
+            raise ValueError(f"Invalid metadata.json: {e}") from e
+
+        # Use validated data
+        metadata = metadata_validated.model_dump()
+        run_id = metadata["run_id"]
 
         # Check if already exists
         existing = self.db.query(SnapshotRun).filter_by(run_id=run_id).first()
@@ -124,9 +139,22 @@ class SnapshotSyncService:
             action_log_file: Path to action_log.json
         """
         with open(action_log_file) as f:
-            actions = json.load(f)
+            actions_raw = json.load(f)
 
-        for idx, action_data in enumerate(actions):
+        for idx, action_data_raw in enumerate(actions_raw):
+            # Validate action log item using Pydantic schema
+            try:
+                action_validated = validate_action_log_item(action_data_raw, str(action_log_file))
+            except ValidationError as e:
+                # Log validation error but continue processing other actions
+                logger.warning(
+                    f"Skipping invalid action log item at index {idx} in {action_log_file}: {e}"
+                )
+                continue
+
+            # Use validated data
+            action_data = action_validated.model_dump()
+
             # Parse timestamp
             timestamp = datetime.fromisoformat(action_data["timestamp"])
 
@@ -135,15 +163,15 @@ class SnapshotSyncService:
                 snapshot_run_id=snapshot_run.id,
                 sequence_number=idx,
                 timestamp=timestamp,
-                action_type=action_data.get("action_type", "unknown"),
+                action_type=action_data["action_type"],
                 pattern_id=action_data.get("pattern_id"),
                 pattern_name=action_data.get("pattern_name"),
-                success=action_data.get("success", True),
+                success=action_data["success"],
                 match_count=action_data.get("match_count"),
                 duration_ms=action_data.get("duration_ms"),
-                active_states=action_data.get("active_states", []),
+                active_states=action_data["active_states"],
                 screenshot_path=action_data.get("screenshot_path"),
-                is_start_screenshot=action_data.get("is_start_screenshot", False),
+                is_start_screenshot=action_data["is_start_screenshot"],
                 action_data_json=action_data,
             )
             self.db.add(action)
@@ -168,19 +196,30 @@ class SnapshotSyncService:
                 continue
 
             with open(metadata_file) as f:
-                pattern_metadata = json.load(f)
+                pattern_metadata_raw = json.load(f)
+
+            # Validate pattern metadata using Pydantic schema
+            try:
+                pattern_validated = validate_pattern_metadata(pattern_metadata_raw, str(metadata_file))
+            except ValidationError as e:
+                # Log validation error but continue processing other patterns
+                logger.warning(f"Skipping invalid pattern metadata for {pattern_id}: {e}")
+                continue
+
+            # Use validated data
+            pattern_metadata = pattern_validated.model_dump()
 
             # Calculate statistics
-            total_finds = pattern_metadata.get("total_finds", 0)
-            successful_finds = pattern_metadata.get("successful_finds", 0)
+            total_finds = pattern_metadata["total_finds"]
+            successful_finds = pattern_metadata["successful_finds"]
             failed_finds = total_finds - successful_finds
-            total_matches = pattern_metadata.get("total_matches", 0)
+            total_matches = pattern_metadata["total_matches"]
 
             # Create pattern record
             pattern = SnapshotPattern(
                 snapshot_run_id=snapshot_run.id,
                 pattern_id=pattern_id,
-                pattern_name=pattern_metadata.get("pattern_name", pattern_id),
+                pattern_name=pattern_metadata["pattern_name"],
                 total_finds=total_finds,
                 successful_finds=successful_finds,
                 failed_finds=failed_finds,
