@@ -1,10 +1,24 @@
 [tool.poetry]
 name = "qontinui-api"
 version = "0.1.0"
-description = "Qontinui API Service"
-authors = ["Your Name <you@example.com>"]
+description = "REST API service for Qontinui GUI automation"
+authors = ["Joshua Spinak <jspinak@alum.mit.edu>"]
+license = "MIT"
 readme = "README.md"
-packages = []
+homepage = "https://github.com/qontinui/qontinui-api"
+repository = "https://github.com/qontinui/qontinui-api"
+documentation = "https://github.com/qontinui/qontinui-api#readme"
+keywords = ["gui", "automation", "api", "fastapi", "qontinui"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Framework :: FastAPI",
+    "Topic :: Software Development :: Testing",
+]
+packages = [{include = "app"}]
 
 [tool.poetry.dependencies]
 python = "^3.12,<3.14"
@@ -18,7 +32,7 @@ pydantic = "^2.5.0"
 pydantic-settings = "^2.0.3"
 python-jose = {extras = ["cryptography"], version = "^3.3.0"}
 cors = "^1.0.1"
-qontinui = {path = "../qontinui", develop = true}
+qontinui = "^0.1.0"
 passlib = {extras = ["bcrypt"], version = "^1.7.4"}
 sqlalchemy = "^2.0.43"
 alembic = "^1.13.0"
