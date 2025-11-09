@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "qontinui-api"
-version = "0.1.0"
+version = "0.1.1"
 description = "REST API service for Qontinui GUI automation"
 authors = ["Joshua Spinak <jspinak@alum.mit.edu>"]
 license = "MIT"
