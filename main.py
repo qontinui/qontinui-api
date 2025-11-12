@@ -32,9 +32,8 @@ from masked_patterns_api import router as masked_patterns_router
 from qontinui.actions import FindOptions
 
 # Import Pydantic schemas from qontinui library
-from qontinui.config.schema import Action as ConfigAction
-from qontinui.config.schema import State as ConfigState
-from qontinui.config.schema import Workflow
+from qontinui.config.schema import Action as ConfigAction, Workflow
+from qontinui.json_executor.config_parser import State as ConfigState
 
 # Import actual qontinui library
 from qontinui.find import Find
@@ -83,10 +82,19 @@ app.include_router(integration_testing_router, prefix="/api")
 # CORS for frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex=r"http://(localhost|127\.0\.0\.1|172\.27\.67\.252):\d+",
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:3001",
+        # Allow frontend on Windows to access WSL backend
+        "http://172.27.67.252:3000",
+        "http://172.27.67.252:3001",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 
@@ -217,17 +225,48 @@ async def find_image(request: FindRequest):
     This is the REAL pattern matching that qontinui uses in production.
     """
     try:
-        # Convert base64 to Qontinui Images
-        screenshot_img = base64_to_qontinui_image(request.screenshot, "screenshot")
+        from qontinui.find.find_executor import FindExecutor
+        from qontinui.find.matchers import TemplateMatcher
+        from qontinui.find.filters import SimilarityFilter, NMSFilter
+        from static_screenshot_provider import StaticScreenshotProvider
+
+        print(f"[find] Received request - similarity: {request.similarity}")
+        print(f"[find] Screenshot length: {len(request.screenshot)}")
+        print(f"[find] Template length: {len(request.template)}")
+        print(f"[find] Search region: {request.search_region}")
+
+        # Convert base64 to PIL and Qontinui Images
+        screenshot_pil = base64_to_pil_image(request.screenshot)
         template_img = base64_to_qontinui_image(request.template, "template")
 
-        # Create Find with the template image
-        find = Find(template_img)
+        print(f"[find] Screenshot image size: {screenshot_pil.size}")
+        print(f"[find] Template image size: {template_img.width}x{template_img.height}")
 
-        # Set similarity
-        find.similarity(request.similarity)
+        # Create Pattern from template image
+        template_pattern = Pattern.from_image(template_img)
+        template_pattern.similarity = request.similarity
+
+        # Create static screenshot provider with the provided screenshot
+        screenshot_provider = StaticScreenshotProvider(screenshot_pil)
+
+        # Configure template matcher
+        matcher = TemplateMatcher(
+            method="TM_CCOEFF_NORMED",
+            nms_overlap_threshold=0.3
+        )
+
+        # Configure filters
+        filters = [SimilarityFilter(min_similarity=request.similarity)]
+
+        # Create executor
+        executor = FindExecutor(
+            screenshot_provider=screenshot_provider,
+            matcher=matcher,
+            filters=filters
+        )
 
         # Set search region if provided
+        search_region = None
         if request.search_region:
             search_region = Region(
                 request.search_region["x"],
@@ -235,21 +274,33 @@ async def find_image(request: FindRequest):
                 request.search_region["width"],
                 request.search_region["height"],
             )
-            find.search_region(search_region)
+            print(f"[find] Search region set: {search_region}")
 
-        # Set the screenshot to search in
-        find.screenshot(screenshot_img)
+        # Execute find operation
+        print(f"[find] Executing find operation with similarity={request.similarity}...")
+        match_list = executor.execute(
+            pattern=template_pattern,
+            search_region=search_region,
+            similarity=request.similarity,
+            find_all=False
+        )
+        print(f"[find] Found {len(match_list)} matches")
 
-        # Execute real find operation
-        match = find.find()
-
-        if match and match.exists():
-            return match_to_response(match)
+        if match_list and len(match_list) > 0:
+            match = match_list[0]
+            print(f"[find] Match found! Score: {match.similarity if hasattr(match, 'similarity') else 'N/A'}")
+            response = match_to_response(match)
+            print(f"[find] Response: {response}")
+            return response
 
         # No match found
+        print(f"[find] No match found")
         return MatchResponse(found=False, region=None, score=0.0, center=None)
 
     except Exception as e:
+        print(f"[find] Error: {str(e)}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -260,22 +311,46 @@ async def find_all_images(request: FindRequest):
     Returns all matches with their scores and regions.
     """
     try:
+        from qontinui.find.find_executor import FindExecutor
+        from qontinui.find.matchers import TemplateMatcher
+        from qontinui.find.filters import SimilarityFilter, NMSFilter
+        from static_screenshot_provider import StaticScreenshotProvider
+
         print(f"[find_all] Starting pattern matching with similarity={request.similarity}")
 
-        # Convert base64 to Qontinui Images
-        screenshot_img = base64_to_qontinui_image(request.screenshot, "screenshot")
+        # Convert base64 to PIL and Qontinui Images
+        screenshot_pil = base64_to_pil_image(request.screenshot)
         template_img = base64_to_qontinui_image(request.template, "template")
         print("[find_all] Images converted successfully")
 
-        # Create Find with the template image
-        find = Find(template_img)
-        print("[find_all] Find object created")
+        # Create Pattern from template image
+        template_pattern = Pattern.from_image(template_img)
+        template_pattern.similarity = request.similarity
 
-        # Set similarity
-        find.similarity(request.similarity)
-        print(f"[find_all] Similarity set to {request.similarity}")
+        # Create static screenshot provider with the provided screenshot
+        screenshot_provider = StaticScreenshotProvider(screenshot_pil)
+
+        # Configure template matcher
+        matcher = TemplateMatcher(
+            method="TM_CCOEFF_NORMED",
+            nms_overlap_threshold=0.3
+        )
+
+        # Configure filters
+        filters = [
+            SimilarityFilter(min_similarity=request.similarity),
+            NMSFilter(iou_threshold=0.3)
+        ]
+
+        # Create executor
+        executor = FindExecutor(
+            screenshot_provider=screenshot_provider,
+            matcher=matcher,
+            filters=filters
+        )
 
         # Set search region if provided
+        search_region = None
         if request.search_region:
             search_region = Region(
                 request.search_region["x"],
@@ -283,30 +358,26 @@ async def find_all_images(request: FindRequest):
                 request.search_region["width"],
                 request.search_region["height"],
             )
-            find.search_region(search_region)
             print("[find_all] Search region set")
 
-        # Set the screenshot to search in
-        find.screenshot(screenshot_img)
-        print("[find_all] Screenshot set")
+        # Execute find_all operation
+        print("[find_all] Executing find_all...")
+        match_list = executor.execute(
+            pattern=template_pattern,
+            search_region=search_region,
+            similarity=request.similarity,
+            find_all=True
+        )
+        print(f"[find_all] Found {len(match_list)} matches")
 
-        # Execute real find_all - using find_all_matches() method
-        print("[find_all] Executing find_all_matches()...")
-        matches = find.find_all_matches()
-        print(f"[find_all] Found {matches.size() if matches else 0} matches")
-
-        if matches and matches.size() > 0:
-            print(f"[find_all] Converting {matches.size()} matches to responses")
-            match_responses = [match_to_response(m) for m in matches.to_list()]
+        if match_list and len(match_list) > 0:
+            print(f"[find_all] Converting {len(match_list)} matches to responses")
+            match_responses = [match_to_response(m) for m in match_list]
             print("[find_all] Matches converted successfully")
             return MatchesResponse(
                 found=True,
                 matches=match_responses,
-                best_match=(
-                    match_to_response(matches.best)
-                    if hasattr(matches, "best") and matches.best
-                    else match_responses[0]
-                ),
+                best_match=match_responses[0] if match_responses else None,
             )
 
         print("[find_all] No matches found")
@@ -1605,4 +1676,5 @@ async def health_check():
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    # Port 8001 for qontinui-api (port 8000 is reserved for main backend)
+    uvicorn.run(app, host="0.0.0.0", port=8001)
