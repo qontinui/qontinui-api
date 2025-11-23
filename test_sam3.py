@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Test SAM2 strategy with mask generation."""
+"""Test SAM3 strategy with mask generation."""
 
 import base64
 import io
@@ -64,15 +64,15 @@ def create_test_ui_image():
     return f"data:image/png;base64,{img_base64}"
 
 
-def test_sam2_strategy():
-    """Test the SAM2 strategy specifically."""
-    print("Testing SAM2 Strategy with Mask Generation...")
+def test_sam3_strategy():
+    """Test the SAM3 strategy specifically."""
+    print("Testing SAM3 Strategy with Mask Generation...")
 
     # Create test image
     test_image = create_test_ui_image()
 
     # Test different strategies
-    strategies = ["sam2", "ocr", "hybrid"]
+    strategies = ["sam3", "ocr", "hybrid"]
 
     for strategy in strategies:
         print(f"\n{'='*50}")
@@ -80,10 +80,11 @@ def test_sam2_strategy():
         print("=" * 50)
 
         # Prepare request
-        url = "http://localhost:8000/api/semantic/process"
+        url = "http://localhost:8001/api/semantic/process"
         payload = {
             "image": test_image,
             "strategy": strategy,
+            "text_prompt": "button" if strategy == "sam3" else None,  # Test SAM3's text prompt feature
             "options": {"enable_ocr": True, "min_confidence": 0.5, "description_model": "clip"},
         }
 
@@ -115,9 +116,9 @@ def test_sam2_strategy():
                     f"\nSummary: {objects_with_masks}/{result['scene']['object_count']} objects have masks"
                 )
 
-                # Additional details for SAM2
-                if strategy == "sam2" and objects_with_masks == 0:
-                    print("⚠️  WARNING: SAM2 strategy should generate masks but none were found!")
+                # Additional details for SAM3
+                if strategy == "sam3" and objects_with_masks == 0:
+                    print("⚠️  WARNING: SAM3 strategy should generate masks but none were found!")
             else:
                 print(f"❌ Error {response.status_code}: {response.text}")
         except Exception as e:
@@ -125,4 +126,4 @@ def test_sam2_strategy():
 
 
 if __name__ == "__main__":
-    test_sam2_strategy()
+    test_sam3_strategy()

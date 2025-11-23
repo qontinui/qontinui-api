@@ -5,17 +5,24 @@ Exposes real qontinui library operations for web-based testing
 
 import base64
 import io
+import json
+import os
 import time
 import uuid
-from typing import Any
+from typing import Any, Optional
 
 import cv2
 import numpy as np
-from fastapi import FastAPI, HTTPException
+import redis
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image as PILImage
 from pydantic import BaseModel
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 
+from app.adapters.state_adapter import convert_multiple_states
 from app.routes.integration_testing import router as integration_testing_router
 from app.routes.snapshot_search import router as snapshot_search_router
 
@@ -54,6 +61,103 @@ app = FastAPI(
     title="Qontinui API",
     version="1.0.0",
 )
+
+# Initialize rate limiter
+limiter = Limiter(key_func=get_remote_address, storage_uri=f"redis://{os.getenv('REDIS_HOST', 'localhost')}:{os.getenv('REDIS_PORT', 6379)}/{os.getenv('REDIS_DB', 0)}")
+app.state.limiter = limiter
+
+
+# Custom rate limit exceeded handler
+@app.exception_handler(RateLimitExceeded)
+async def custom_rate_limit_handler(request: Request, exc: RateLimitExceeded):
+    """Custom handler for rate limit exceeded responses"""
+    from fastapi.responses import JSONResponse
+
+    return JSONResponse(
+        status_code=429,
+        content={
+            "error": "Rate limit exceeded",
+            "message": "Too many requests. Please try again later.",
+            "retry_after": getattr(exc, "detail", "60 seconds"),
+        },
+    )
+
+# Initialize Redis client for session storage
+redis_client = redis.Redis(
+    host=os.getenv("REDIS_HOST", "localhost"),
+    port=int(os.getenv("REDIS_PORT", 6379)),
+    db=int(os.getenv("REDIS_DB", 0)),
+    decode_responses=True,
+)
+
+
+# Redis Session Storage Helper Functions
+def save_session(session_id: str, session: "MockSession", ttl: int = 3600):
+    """
+    Save session to Redis with TTL (default 1 hour).
+
+    Args:
+        session_id: Unique session identifier
+        session: MockSession object to save
+        ttl: Time to live in seconds (default: 3600 = 1 hour)
+    """
+    try:
+        redis_client.setex(
+            f"mock_session:{session_id}", ttl, json.dumps(session.dict())
+        )
+    except Exception as e:
+        print(f"Error saving session {session_id} to Redis: {e}")
+        raise
+
+
+def get_session(session_id: str) -> Optional["MockSession"]:
+    """
+    Retrieve session from Redis.
+
+    Args:
+        session_id: Unique session identifier
+
+    Returns:
+        MockSession object if found, None otherwise
+    """
+    try:
+        data = redis_client.get(f"mock_session:{session_id}")
+        if data:
+            return MockSession(**json.loads(data))
+        return None
+    except Exception as e:
+        print(f"Error retrieving session {session_id} from Redis: {e}")
+        return None
+
+
+def delete_session(session_id: str):
+    """
+    Delete session from Redis.
+
+    Args:
+        session_id: Unique session identifier
+    """
+    try:
+        redis_client.delete(f"mock_session:{session_id}")
+    except Exception as e:
+        print(f"Error deleting session {session_id} from Redis: {e}")
+        raise
+
+
+def list_sessions() -> list[str]:
+    """
+    List all session IDs stored in Redis.
+
+    Returns:
+        List of session IDs (without the 'mock_session:' prefix)
+    """
+    try:
+        keys = redis_client.keys("mock_session:*")
+        return [key.replace("mock_session:", "") for key in keys]
+    except Exception as e:
+        print(f"Error listing sessions from Redis: {e}")
+        return []
+
 
 # Include semantic router
 app.include_router(semantic_router, prefix="/api")
@@ -219,7 +323,8 @@ def match_to_response(match) -> MatchResponse:
 
 
 @app.post("/find", response_model=MatchResponse)
-async def find_image(request: FindRequest):
+@limiter.limit("60/minute")
+async def find_image(request: Request, find_request: FindRequest):
     """
     Use qontinui's actual Find operation to find template in screenshot.
     This is the REAL pattern matching that qontinui uses in production.
@@ -230,21 +335,21 @@ async def find_image(request: FindRequest):
         from qontinui.find.filters import SimilarityFilter, NMSFilter
         from static_screenshot_provider import StaticScreenshotProvider
 
-        print(f"[find] Received request - similarity: {request.similarity}")
-        print(f"[find] Screenshot length: {len(request.screenshot)}")
-        print(f"[find] Template length: {len(request.template)}")
-        print(f"[find] Search region: {request.search_region}")
+        print(f"[find] Received request - similarity: {find_request.similarity}")
+        print(f"[find] Screenshot length: {len(find_request.screenshot)}")
+        print(f"[find] Template length: {len(find_request.template)}")
+        print(f"[find] Search region: {find_request.search_region}")
 
         # Convert base64 to PIL and Qontinui Images
-        screenshot_pil = base64_to_pil_image(request.screenshot)
-        template_img = base64_to_qontinui_image(request.template, "template")
+        screenshot_pil = base64_to_pil_image(find_request.screenshot)
+        template_img = base64_to_qontinui_image(find_request.template, "template")
 
         print(f"[find] Screenshot image size: {screenshot_pil.size}")
         print(f"[find] Template image size: {template_img.width}x{template_img.height}")
 
         # Create Pattern from template image
         template_pattern = Pattern.from_image(template_img)
-        template_pattern.similarity = request.similarity
+        template_pattern.similarity = find_request.similarity
 
         # Create static screenshot provider with the provided screenshot
         screenshot_provider = StaticScreenshotProvider(screenshot_pil)
@@ -256,7 +361,7 @@ async def find_image(request: FindRequest):
         )
 
         # Configure filters
-        filters = [SimilarityFilter(min_similarity=request.similarity)]
+        filters = [SimilarityFilter(min_similarity=find_request.similarity)]
 
         # Create executor
         executor = FindExecutor(
@@ -267,21 +372,21 @@ async def find_image(request: FindRequest):
 
         # Set search region if provided
         search_region = None
-        if request.search_region:
+        if find_request.search_region:
             search_region = Region(
-                request.search_region["x"],
-                request.search_region["y"],
-                request.search_region["width"],
-                request.search_region["height"],
+                find_request.search_region["x"],
+                find_request.search_region["y"],
+                find_request.search_region["width"],
+                find_request.search_region["height"],
             )
             print(f"[find] Search region set: {search_region}")
 
         # Execute find operation
-        print(f"[find] Executing find operation with similarity={request.similarity}...")
+        print(f"[find] Executing find operation with similarity={find_request.similarity}...")
         match_list = executor.execute(
             pattern=template_pattern,
             search_region=search_region,
-            similarity=request.similarity,
+            similarity=find_request.similarity,
             find_all=False
         )
         print(f"[find] Found {len(match_list)} matches")
@@ -305,7 +410,8 @@ async def find_image(request: FindRequest):
 
 
 @app.post("/find_all", response_model=MatchesResponse)
-async def find_all_images(request: FindRequest):
+@limiter.limit("60/minute")
+async def find_all_images(request: Request, find_request: FindRequest):
     """
     Use qontinui's find_all to find all template instances.
     Returns all matches with their scores and regions.
@@ -316,16 +422,16 @@ async def find_all_images(request: FindRequest):
         from qontinui.find.filters import SimilarityFilter, NMSFilter
         from static_screenshot_provider import StaticScreenshotProvider
 
-        print(f"[find_all] Starting pattern matching with similarity={request.similarity}")
+        print(f"[find_all] Starting pattern matching with similarity={find_request.similarity}")
 
         # Convert base64 to PIL and Qontinui Images
-        screenshot_pil = base64_to_pil_image(request.screenshot)
-        template_img = base64_to_qontinui_image(request.template, "template")
+        screenshot_pil = base64_to_pil_image(find_request.screenshot)
+        template_img = base64_to_qontinui_image(find_request.template, "template")
         print("[find_all] Images converted successfully")
 
         # Create Pattern from template image
         template_pattern = Pattern.from_image(template_img)
-        template_pattern.similarity = request.similarity
+        template_pattern.similarity = find_request.similarity
 
         # Create static screenshot provider with the provided screenshot
         screenshot_provider = StaticScreenshotProvider(screenshot_pil)
@@ -338,7 +444,7 @@ async def find_all_images(request: FindRequest):
 
         # Configure filters
         filters = [
-            SimilarityFilter(min_similarity=request.similarity),
+            SimilarityFilter(min_similarity=find_request.similarity),
             NMSFilter(iou_threshold=0.3)
         ]
 
@@ -351,12 +457,12 @@ async def find_all_images(request: FindRequest):
 
         # Set search region if provided
         search_region = None
-        if request.search_region:
+        if find_request.search_region:
             search_region = Region(
-                request.search_region["x"],
-                request.search_region["y"],
-                request.search_region["width"],
-                request.search_region["height"],
+                find_request.search_region["x"],
+                find_request.search_region["y"],
+                find_request.search_region["width"],
+                find_request.search_region["height"],
             )
             print("[find_all] Search region set")
 
@@ -365,7 +471,7 @@ async def find_all_images(request: FindRequest):
         match_list = executor.execute(
             pattern=template_pattern,
             search_region=search_region,
-            similarity=request.similarity,
+            similarity=find_request.similarity,
             find_all=True
         )
         print(f"[find_all] Found {len(match_list)} matches")
@@ -553,8 +659,8 @@ async def validate_location(
 
 # === MOCK EXECUTION ENDPOINTS ===
 
-# Store mock sessions in memory (in production, use Redis or similar)
-mock_sessions: dict[str, MockSession] = {}
+# Sessions are now stored in Redis (see Redis Session Storage Helper Functions above)
+# No in-memory storage needed
 
 # Global state management using Qontinui's state management system
 state_manager = QontinuiStateManager()
@@ -590,7 +696,8 @@ async def create_mock_session(request: MockExecutionRequest):
     session.screenshots = request.screenshots  # type: ignore
     session.states = request.states  # type: ignore
 
-    mock_sessions[session_id] = session
+    # Save session to Redis with 1 hour TTL
+    save_session(session_id, session, ttl=3600)
 
     # Immediately detect states in first screenshot
     await _detect_and_activate_states(session)
@@ -622,10 +729,9 @@ async def _detect_and_activate_states(session: MockSession):
 @app.post("/mock/detect_current_states")
 async def detect_current_states(session_id: str, similarity: float = 0.8):
     """Detect states in the current screenshot of the session"""
-    if session_id not in mock_sessions:
+    session = get_session(session_id)
+    if not session:
         raise HTTPException(status_code=404, detail="Session not found")
-
-    session = mock_sessions[session_id]
 
     # Get current screenshot
     if session.current_screenshot_index >= len(session.screenshots):  # type: ignore
@@ -653,6 +759,9 @@ async def detect_current_states(session_id: str, similarity: float = 0.8):
         }
     )
 
+    # Save updated session to Redis
+    save_session(session_id, session, ttl=3600)
+
     return {
         "session_id": session_id,
         "current_screenshot_index": session.current_screenshot_index,
@@ -664,10 +773,9 @@ async def detect_current_states(session_id: str, similarity: float = 0.8):
 @app.post("/mock/next_screenshot")
 async def next_screenshot(session_id: str):
     """Move to the next screenshot in the session"""
-    if session_id not in mock_sessions:
+    session = get_session(session_id)
+    if not session:
         raise HTTPException(status_code=404, detail="Session not found")
-
-    session = mock_sessions[session_id]
 
     if session.current_screenshot_index < len(session.screenshots) - 1:  # type: ignore
         session.current_screenshot_index += 1
@@ -680,6 +788,9 @@ async def next_screenshot(session_id: str):
                 "new_index": session.current_screenshot_index,
             }
         )
+
+        # Save updated session to Redis
+        save_session(session_id, session, ttl=3600)
 
         return {
             "session_id": session_id,
@@ -697,10 +808,9 @@ async def next_screenshot(session_id: str):
 @app.post("/mock/previous_screenshot")
 async def previous_screenshot(session_id: str):
     """Move to the previous screenshot in the session"""
-    if session_id not in mock_sessions:
+    session = get_session(session_id)
+    if not session:
         raise HTTPException(status_code=404, detail="Session not found")
-
-    session = mock_sessions[session_id]
 
     if session.current_screenshot_index > 0:
         session.current_screenshot_index -= 1
@@ -713,6 +823,9 @@ async def previous_screenshot(session_id: str):
                 "new_index": session.current_screenshot_index,
             }
         )
+
+        # Save updated session to Redis
+        save_session(session_id, session, ttl=3600)
 
         return {
             "session_id": session_id,
@@ -730,10 +843,9 @@ async def previous_screenshot(session_id: str):
 @app.get("/mock/session_status/{session_id}")
 async def get_session_status(session_id: str):
     """Get the current status of a mock session"""
-    if session_id not in mock_sessions:
+    session = get_session(session_id)
+    if not session:
         raise HTTPException(status_code=404, detail="Session not found")
-
-    session = mock_sessions[session_id]
 
     return {
         "session_id": session_id,
@@ -748,10 +860,9 @@ async def get_session_status(session_id: str):
 @app.get("/mock/execution_history/{session_id}")
 async def get_execution_history(session_id: str):
     """Get the execution history of a mock session"""
-    if session_id not in mock_sessions:
+    session = get_session(session_id)
+    if not session:
         raise HTTPException(status_code=404, detail="Session not found")
-
-    session = mock_sessions[session_id]
 
     return {"session_id": session_id, "history": session.execution_history}
 
@@ -759,24 +870,27 @@ async def get_execution_history(session_id: str):
 @app.post("/mock/add_snapshots/{session_id}")
 async def add_action_snapshots(session_id: str, snapshots: list[dict[str, Any]]):
     """Add action snapshots for integration testing"""
-    if session_id not in mock_sessions:
+    session = get_session(session_id)
+    if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    session = mock_sessions[session_id]
     session.action_snapshots.extend(snapshots)
+
+    # Save updated session to Redis
+    save_session(session_id, session, ttl=3600)
 
     return {"session_id": session_id, "total_snapshots": len(session.action_snapshots)}
 
 
 @app.post("/mock/execute_action/{session_id}")
+@limiter.limit("120/minute")
 async def execute_mock_action(
-    session_id: str, action_type: str, action_config: dict[str, Any] | None = None
+    request: Request, session_id: str, action_type: str, action_config: dict[str, Any] | None = None
 ):
     """Execute an action using snapshots (integration testing)"""
-    if session_id not in mock_sessions:
+    session = get_session(session_id)
+    if not session:
         raise HTTPException(status_code=404, detail="Session not found")
-
-    session = mock_sessions[session_id]
 
     # Find matching snapshot for current state and action
     matching_snapshot = _find_matching_snapshot(
@@ -821,6 +935,9 @@ async def execute_mock_action(
         }
     )
 
+    # Save updated session to Redis
+    save_session(session_id, session, ttl=3600)
+
     return result
 
 
@@ -855,12 +972,14 @@ def _find_matching_snapshot(
 
 
 @app.delete("/mock/session/{session_id}")
-async def delete_session(session_id: str):
+async def delete_mock_session(session_id: str):
     """Delete a mock session"""
-    if session_id not in mock_sessions:
+    session = get_session(session_id)
+    if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    del mock_sessions[session_id]
+    # Delete session from Redis
+    delete_session(session_id)
 
     return {"session_id": session_id, "status": "deleted"}
 
@@ -870,32 +989,36 @@ async def delete_session(session_id: str):
 
 @app.post("/states/register")
 async def register_states(states: list[dict[str, Any]]):
-    """Register states with Qontinui's state management system"""
-    registered = []
-    for state_dict in states:
-        try:
-            # Use state name as the identifier (qontinui uses strings, not enums)
-            state_name = state_dict.get("name", state_dict.get("id", ""))
+    """
+    Register states with Qontinui's state management system.
+    Uses the state adapter to convert frontend state format to qontinui State format.
+    """
+    try:
+        # Convert frontend states to qontinui States using the adapter
+        qontinui_states = convert_multiple_states(states)
 
-            # Create State object with just the name
-            state = State(name=state_name)
+        registered = []
+        for state in qontinui_states:
+            try:
+                # Register with state store and manager
+                state_store.register(state)
+                state_manager.add_state(state)
+                registered.append(state.name)
+            except Exception as e:
+                print(f"Failed to register state {state.name}: {e}")
+                continue
 
-            # Add state images if provided
-            for img_dict in state_dict.get("stateImages", []):
-                state_image = StateImage(
-                    name=img_dict.get("name", ""),
-                    # Note: We're not storing actual image data in State object
-                )
-                state.add_state_image(state_image)
+        return {
+            "status": "success",
+            "registered": registered,
+            "registered_count": len(registered),
+            "total": len(states),
+        }
+    except Exception as e:
+        import traceback
 
-            # Register with state store and manager using the name as key
-            state_store.register(state)
-            state_manager.add_state(state)
-            registered.append(state_name)  # Track by name, not ID
-        except Exception as e:
-            print(f"Failed to register state {state_dict.get('name')}: {e}")
-
-    return {"registered": registered, "total": len(registered)}
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"State registration failed: {str(e)}") from e
 
 
 @app.get("/states/active")
@@ -1159,7 +1282,8 @@ async def execute_workflow(request: WorkflowExecutionRequest):
         action_snapshots=[],
     )
 
-    mock_sessions[session_id] = session
+    # Save session to Redis with 1 hour TTL
+    save_session(session_id, session, ttl=3600)
 
     # Count total actions in workflow
     total_actions = len(request.workflow.actions)
@@ -1193,10 +1317,9 @@ async def execute_workflow(request: WorkflowExecutionRequest):
 @app.post("/workflow/execute_step/{session_id}")
 async def execute_workflow_step(session_id: str, action: ConfigAction):
     """Execute a single action step in a workflow"""
-    if session_id not in mock_sessions:
+    session = get_session(session_id)
+    if not session:
         raise HTTPException(status_code=404, detail="Session not found")
-
-    session = mock_sessions[session_id]
 
     # Determine execution mode
     action_type = action.type
@@ -1279,16 +1402,18 @@ async def execute_workflow_step(session_id: str, action: ConfigAction):
     # Add to session history
     session.execution_history.append(result)
 
+    # Save updated session to Redis
+    save_session(session_id, session, ttl=3600)
+
     return result
 
 
 @app.get("/workflow/status/{session_id}")
 async def get_workflow_status(session_id: str):
     """Get the status of a workflow execution"""
-    if session_id not in mock_sessions:
+    session = get_session(session_id)
+    if not session:
         raise HTTPException(status_code=404, detail="Session not found")
-
-    session = mock_sessions[session_id]
 
     # Calculate status
     total_actions = len(session.execution_history)
@@ -1308,10 +1433,9 @@ async def get_workflow_status(session_id: str):
 @app.post("/workflow/complete/{session_id}")
 async def complete_workflow(session_id: str):
     """Mark a workflow execution as complete"""
-    if session_id not in mock_sessions:
+    session = get_session(session_id)
+    if not session:
         raise HTTPException(status_code=404, detail="Session not found")
-
-    session = mock_sessions[session_id]
 
     # Calculate final results
     total_actions = len(session.execution_history)
@@ -1326,8 +1450,8 @@ async def complete_workflow(session_id: str):
         "execution_history": session.execution_history,
     }
 
-    # Clean up session
-    del mock_sessions[session_id]
+    # Clean up session from Redis
+    delete_session(session_id)
 
     return result
 
@@ -1660,12 +1784,24 @@ async def create_state_image(request: CreateStateImageRequest):
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
+    # Check Redis connection
+    redis_healthy = False
+    try:
+        redis_client.ping()
+        redis_healthy = True
+    except Exception:
+        pass
+
+    # Get active session count from Redis
+    active_session_count = len(list_sessions())
+
     return {
-        "status": "healthy",
+        "status": "healthy" if redis_healthy else "degraded",
         "service": "qontinui-api",
         "version": "1.0.0",
         "qontinui_available": True,
-        "active_sessions": len(mock_sessions),
+        "redis_connected": redis_healthy,
+        "active_sessions": active_session_count,
         "state_management": {
             "active_states": len(state_manager.active_states),
             "registered_states": len(state_manager.state_graph.states),
