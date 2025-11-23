@@ -55,7 +55,8 @@ class ProcessingOptions(BaseModel):
 
 class SemanticProcessRequest(BaseModel):
     image: str  # base64 encoded image
-    strategy: str = "hybrid"  # sam2, ocr, or hybrid
+    strategy: str = "hybrid"  # sam3, ocr, or hybrid
+    text_prompt: str | None = None  # Optional text prompt for SAM3 concept segmentation
     options: ProcessingOptions = ProcessingOptions()
 
 
@@ -188,9 +189,9 @@ class RealSemanticProcessor:
         objects = []
 
         # Choose strategy based on request
-        if strategy == "sam2":
-            # Use SAM2-style segmentation with masks
-            segments = self._segment_with_masks(image, options)
+        if strategy == "sam3":
+            # Use SAM3-style segmentation with masks and optional text prompts
+            segments = self._segment_with_masks(image, options, text_prompt=None)
             objects.extend(segments)
         elif strategy == "ocr":
             # Focus on text extraction
@@ -645,9 +646,9 @@ class RealSemanticProcessor:
         return intersection / union if union > 0 else 0.0
 
     def _segment_with_masks(
-        self, image: np.ndarray, options: ProcessingOptions
+        self, image: np.ndarray, options: ProcessingOptions, text_prompt: str | None = None
     ) -> list[SemanticObject]:
-        """Segment image and generate masks (SAM2-style)."""
+        """Segment image and generate masks (SAM3-style with optional text prompts)."""
         objects = []
         gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
 
@@ -704,11 +705,11 @@ class RealSemanticProcessor:
             description = f"{content_description} {position}"
 
             obj = SemanticObject(
-                id=f"sam2_{idx}_{x}_{y}",
+                id=f"sam3_{idx}_{x}_{y}",
                 description=description,
                 ocr_text=None,
                 type=element_type,
-                confidence=0.85,  # Higher confidence for SAM2-style
+                confidence=0.85,  # Higher confidence for SAM3-style
                 bounding_box=BoundingBox(x=x, y=y, width=w, height=h),
                 pixel_mask=encoded_mask,  # Include the actual mask
                 attributes={
@@ -716,6 +717,7 @@ class RealSemanticProcessor:
                     "interactable": element_type in ["button", "input", "link"],
                     "area": int(area),
                     "has_mask": True,
+                    "text_prompt": text_prompt if text_prompt else None,
                 },
             )
             objects.append(obj)
@@ -741,8 +743,12 @@ async def process_screenshot(request: SemanticProcessRequest):
             # In real implementation, this would limit detection to specific regions
             pass
 
-        # Detect UI elements with strategy
-        objects = processor.detect_ui_elements(image, request.options, request.strategy)
+        # Detect UI elements with strategy (pass text_prompt for SAM3)
+        if request.strategy == "sam3" and request.text_prompt:
+            # For SAM3 with text prompt, use the mask generator directly
+            objects = processor._segment_with_masks(image, request.options, text_prompt=request.text_prompt)
+        else:
+            objects = processor.detect_ui_elements(image, request.options, request.strategy)
 
         # Filter by confidence
         objects = [obj for obj in objects if obj.confidence >= request.options.min_confidence]
