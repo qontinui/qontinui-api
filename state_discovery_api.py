@@ -21,6 +21,7 @@ from fastapi import (
     APIRouter,
     BackgroundTasks,
     File,
+    Form,
     HTTPException,
     UploadFile,
     WebSocket,
@@ -38,6 +39,17 @@ from qontinui.discovery import (
 )
 from qontinui.discovery.deletion_manager import DeletionManager
 from qontinui.discovery.models import AnalysisConfig, DeleteOptions
+
+# Import state detection components
+from qontinui.discovery.state_detection.differential_consistency_detector import (
+    DifferentialConsistencyDetector,
+    StateRegion,
+)
+from qontinui.discovery.state_construction.state_builder import (
+    StateBuilder,
+    TransitionInfo,
+)
+from qontinui.discovery.state_construction.ocr_name_generator import OCRNameGenerator
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -68,6 +80,8 @@ class StateDiscoveryStore:
         self.deletion_manager = DeletionManager()
         self.project_screenshots = {}  # project_id -> {screenshot_id: screenshot_data}
         self.screenshot_hashes = {}  # hash -> screenshot_id
+        self.detected_states = {}  # state_id -> State object
+        self.state_regions_cache = {}  # cache_key -> detected regions
 
     def store_upload(self, upload_id: str, screenshots: list[np.ndarray], metadata: dict):
         self.uploads[upload_id] = {
@@ -114,6 +128,19 @@ class StateDiscoveryStore:
     def get_project_screenshots(self, project_id: str):
         """Get all screenshots for a project."""
         return self.project_screenshots.get(project_id, {})
+
+    def get_screenshot_by_id(self, project_id: str, screenshot_id: str):
+        """Get a specific screenshot by ID."""
+        project_screenshots = self.project_screenshots.get(project_id, {})
+        return project_screenshots.get(screenshot_id)
+
+    def store_detected_state(self, state_id: str, state_obj):
+        """Store a detected state."""
+        self.detected_states[state_id] = state_obj
+
+    def get_detected_state(self, state_id: str):
+        """Get a detected state by ID."""
+        return self.detected_states.get(state_id)
 
 
 # Global store instance
@@ -229,6 +256,55 @@ class SaveScreenshotResponse(BaseModel):
     duplicates: list[dict[str, Any]]
     total_saved: int
     total_duplicates: int
+
+
+# State Detection Models
+
+
+class TransitionPairRequest(BaseModel):
+    before_screenshot_id: str
+    after_screenshot_id: str
+    click_point: tuple[int, int] | None = None
+    target_state_name: str | None = None
+
+
+class AnalyzeTransitionsRequest(BaseModel):
+    transition_pairs: list[TransitionPairRequest]
+    consistency_threshold: float = 0.7
+    min_region_area: int = 500
+    morphology_kernel_size: int = 5
+    normalize_method: str = "minmax"
+
+
+class DetectRegionsRequest(BaseModel):
+    upload_id: str
+    consistency_threshold: float = 0.7
+    min_region_area: int = 500
+    morphology_kernel_size: int = 5
+
+
+class BuildStateRequest(BaseModel):
+    screenshot_ids: list[str]
+    transition_pairs: list[TransitionPairRequest] | None = None
+    state_name: str | None = None
+    consistency_threshold: float = 0.9
+    min_image_area: int = 100
+    min_region_area: int = 500
+
+
+class StateRegionResponse(BaseModel):
+    bbox: tuple[int, int, int, int]
+    consistency_score: float
+    pixel_count: int
+
+
+class DetectedStateResponse(BaseModel):
+    name: str
+    state_images: list[dict[str, Any]]
+    state_regions: list[dict[str, Any]]
+    state_locations: list[dict[str, Any]]
+    boundary: tuple[int, int, int, int] | None = None
+    description: str
 
 
 # Endpoints
@@ -953,4 +1029,361 @@ async def create_pattern_from_state_image(
         "source_state_image": state_image_id,
         "similarity_threshold": similarity_threshold,
         "message": "Pattern created successfully",
-    }  # Force reload Mon Sep 29 16:55:25 CEST 2025
+    }
+
+
+# State Detection Endpoints
+
+
+@router.post("/state-detection/analyze-transitions")
+async def analyze_transitions(request: AnalyzeTransitionsRequest, project_id: str = "default"):
+    """Analyze transition pairs to detect state regions using differential consistency.
+
+    This endpoint takes before/after screenshot pairs and identifies regions that
+    change consistently together, indicating state boundaries (e.g., modal dialogs,
+    popup windows, menus).
+
+    Args:
+        request: Analysis parameters including transition pairs and thresholds
+        project_id: Project ID to retrieve screenshots from
+
+    Returns:
+        Dictionary containing detected state regions with consistency scores
+
+    Example:
+        POST /api/v1/state-detection/analyze-transitions
+        {
+            "transition_pairs": [
+                {
+                    "before_screenshot_id": "ps_abc123",
+                    "after_screenshot_id": "ps_def456",
+                    "click_point": [100, 200],
+                    "target_state_name": "menu"
+                },
+                ...
+            ],
+            "consistency_threshold": 0.7,
+            "min_region_area": 500
+        }
+    """
+    try:
+        if len(request.transition_pairs) < 10:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Need at least 10 transition pairs for accurate detection. "
+                f"Got {len(request.transition_pairs)}. More examples (100-1000) give better results.",
+            )
+
+        # Load screenshot pairs from storage
+        screenshot_pairs = []
+        for pair in request.transition_pairs:
+            before_data = store.get_screenshot_by_id(project_id, pair.before_screenshot_id)
+            after_data = store.get_screenshot_by_id(project_id, pair.after_screenshot_id)
+
+            if not before_data or not after_data:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Screenshot not found: {pair.before_screenshot_id} or {pair.after_screenshot_id}",
+                )
+
+            # Convert from bytes to numpy arrays
+            before_img = PILImage.open(io.BytesIO(before_data["image_bytes"]))
+            after_img = PILImage.open(io.BytesIO(after_data["image_bytes"]))
+
+            before_array = np.array(before_img)
+            after_array = np.array(after_img)
+
+            screenshot_pairs.append((before_array, after_array))
+
+        # Initialize detector
+        detector = DifferentialConsistencyDetector()
+
+        # Detect regions
+        regions = detector.detect_state_regions(
+            transition_pairs=screenshot_pairs,
+            consistency_threshold=request.consistency_threshold,
+            min_region_area=request.min_region_area,
+            morphology_kernel_size=request.morphology_kernel_size,
+            normalize_method=request.normalize_method,
+        )
+
+        # Convert regions to response format
+        region_responses = [
+            StateRegionResponse(
+                bbox=region.bbox,
+                consistency_score=region.consistency_score,
+                pixel_count=region.pixel_count,
+            ).model_dump()
+            for region in regions
+        ]
+
+        logger.info(f"Detected {len(regions)} state regions from {len(screenshot_pairs)} transitions")
+
+        return {
+            "regions": region_responses,
+            "total_transitions": len(screenshot_pairs),
+            "total_regions": len(regions),
+            "best_region": region_responses[0] if region_responses else None,
+        }
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except Exception as e:
+        logger.error(f"Error analyzing transitions: {e}")
+        raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}") from e
+
+
+@router.post("/state-detection/detect-regions")
+async def detect_regions_from_upload(request: DetectRegionsRequest):
+    """Detect regions using differential consistency from uploaded screenshots.
+
+    This endpoint analyzes consecutive screenshots from an upload to find
+    consistent change patterns. It creates pairs from the screenshot sequence
+    and applies differential consistency detection.
+
+    Args:
+        request: Detection parameters including upload_id and thresholds
+
+    Returns:
+        Dictionary mapping screenshot indices to detected regions
+
+    Example:
+        POST /api/v1/state-detection/detect-regions
+        {
+            "upload_id": "upload_abc123",
+            "consistency_threshold": 0.7,
+            "min_region_area": 500
+        }
+    """
+    try:
+        # Get upload
+        upload = store.get_upload(request.upload_id)
+        if not upload:
+            raise HTTPException(status_code=404, detail="Upload not found")
+
+        screenshots = upload["screenshots"]
+
+        if len(screenshots) < 11:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Need at least 11 screenshots to create 10 pairs. Got {len(screenshots)}.",
+            )
+
+        # Initialize detector
+        detector = DifferentialConsistencyDetector()
+
+        # Use detect_multi to analyze screenshot sequence
+        results = detector.detect_multi(
+            screenshots=screenshots,
+            consistency_threshold=request.consistency_threshold,
+            min_region_area=request.min_region_area,
+            morphology_kernel_size=request.morphology_kernel_size,
+        )
+
+        logger.info(f"Detected regions across {len(screenshots)} screenshots")
+
+        return {
+            "upload_id": request.upload_id,
+            "total_screenshots": len(screenshots),
+            "results": results,
+        }
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except Exception as e:
+        logger.error(f"Error detecting regions: {e}")
+        raise HTTPException(status_code=500, detail=f"Detection failed: {str(e)}") from e
+
+
+@router.get("/state-detection/states")
+async def list_detected_states():
+    """List all detected states.
+
+    Returns:
+        Dictionary containing list of detected states with metadata
+
+    Example:
+        GET /api/v1/state-detection/states
+    """
+    states_list = []
+    for state_id, state in store.detected_states.items():
+        states_list.append(
+            {
+                "id": state_id,
+                "name": state.name,
+                "description": state.description or "",
+                "state_images_count": len(state.state_images),
+                "state_regions_count": len(state.state_regions),
+                "state_locations_count": len(state.state_locations),
+            }
+        )
+
+    return {"states": states_list, "total": len(states_list)}
+
+
+@router.post("/state-detection/build-state", response_model=DetectedStateResponse)
+async def build_state_from_screenshots(request: BuildStateRequest, project_id: str = "default"):
+    """Build a complete State object from screenshots using StateBuilder.
+
+    This endpoint orchestrates the full state construction pipeline:
+    1. Load screenshots from storage
+    2. Generate state name using OCR
+    3. Identify persistent visual elements (StateImages)
+    4. Detect functional areas (StateRegions)
+    5. Cluster click points (StateLocations)
+    6. Determine state boundaries (for modals/dialogs)
+
+    Args:
+        request: Build parameters including screenshot IDs and optional transitions
+        project_id: Project ID to retrieve screenshots from
+
+    Returns:
+        Fully constructed State object with all components
+
+    Example:
+        POST /api/v1/state-detection/build-state
+        {
+            "screenshot_ids": ["ps_abc123", "ps_def456", "ps_ghi789"],
+            "state_name": "inventory_menu",
+            "consistency_threshold": 0.9,
+            "min_image_area": 100,
+            "min_region_area": 500
+        }
+    """
+    try:
+        if not request.screenshot_ids:
+            raise HTTPException(status_code=400, detail="screenshot_ids cannot be empty")
+
+        # Load screenshots from storage
+        screenshots = []
+        for screenshot_id in request.screenshot_ids:
+            screenshot_data = store.get_screenshot_by_id(project_id, screenshot_id)
+            if not screenshot_data:
+                raise HTTPException(
+                    status_code=404, detail=f"Screenshot not found: {screenshot_id}"
+                )
+
+            # Convert from bytes to numpy array
+            img = PILImage.open(io.BytesIO(screenshot_data["image_bytes"]))
+            screenshots.append(np.array(img))
+
+        # Load transition data if provided
+        transitions_to_state = None
+        if request.transition_pairs:
+            transitions_to_state = []
+            for pair in request.transition_pairs:
+                before_data = store.get_screenshot_by_id(project_id, pair.before_screenshot_id)
+                after_data = store.get_screenshot_by_id(project_id, pair.after_screenshot_id)
+
+                if not before_data or not after_data:
+                    logger.warning(
+                        f"Skipping transition pair with missing screenshots: "
+                        f"{pair.before_screenshot_id}, {pair.after_screenshot_id}"
+                    )
+                    continue
+
+                before_img = np.array(PILImage.open(io.BytesIO(before_data["image_bytes"])))
+                after_img = np.array(PILImage.open(io.BytesIO(after_data["image_bytes"])))
+
+                transition = TransitionInfo(
+                    before_screenshot=before_img,
+                    after_screenshot=after_img,
+                    click_point=tuple(pair.click_point) if pair.click_point else None,
+                    target_state_name=pair.target_state_name,
+                )
+                transitions_to_state.append(transition)
+
+        # Initialize StateBuilder
+        builder = StateBuilder(
+            consistency_threshold=request.consistency_threshold,
+            min_image_area=request.min_image_area,
+            min_region_area=request.min_region_area,
+        )
+
+        # Build state
+        state = builder.build_state_from_screenshots(
+            screenshot_sequence=screenshots,
+            transitions_to_state=transitions_to_state,
+            state_name=request.state_name,
+        )
+
+        # Store the detected state
+        state_id = f"state_{uuid.uuid4().hex[:12]}"
+        store.store_detected_state(state_id, state)
+
+        # Convert StateImages to dicts
+        state_images_dicts = []
+        for si in state.state_images:
+            state_images_dicts.append(
+                {
+                    "name": si.name,
+                    "similarity": getattr(si, "_similarity", 0.85),
+                    "bbox": si.metadata.get("bbox"),
+                    "area": si.metadata.get("area"),
+                    "context": si.metadata.get("context"),
+                }
+            )
+
+        # Convert StateRegions to dicts
+        state_regions_dicts = []
+        for sr in state.state_regions:
+            state_regions_dicts.append(
+                {
+                    "name": sr.name,
+                    "bbox": sr.metadata.get("bbox"),
+                    "type": sr.metadata.get("type"),
+                    "interaction_region": getattr(sr, "_interaction_region", False),
+                }
+            )
+
+        # Convert StateLocations to dicts
+        state_locations_dicts = []
+        for sl in state.state_locations:
+            state_locations_dicts.append(
+                {
+                    "name": sl.name,
+                    "x": sl.location.x,
+                    "y": sl.location.y,
+                    "target_state": sl.metadata.get("target_state"),
+                    "confidence": sl.metadata.get("confidence"),
+                    "sample_size": sl.metadata.get("sample_size"),
+                }
+            )
+
+        # Get boundary if available
+        boundary = None
+        if hasattr(state, "usable_area") and state.usable_area:
+            region = state.usable_area
+            boundary = (region.x, region.y, region.w, region.h)
+
+        logger.info(
+            f"Built state '{state.name}': {len(state.state_images)} images, "
+            f"{len(state.state_regions)} regions, {len(state.state_locations)} locations"
+        )
+
+        response = DetectedStateResponse(
+            name=state.name,
+            state_images=state_images_dicts,
+            state_regions=state_regions_dicts,
+            state_locations=state_locations_dicts,
+            boundary=boundary,
+            description=state.description or "",
+        )
+
+        # Add state_id to response
+        response_dict = response.model_dump()
+        response_dict["id"] = state_id
+
+        return response_dict
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except Exception as e:
+        logger.error(f"Error building state: {e}")
+        import traceback
+
+        logger.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"State building failed: {str(e)}") from e
+
+
+# Force reload Mon Sep 29 16:55:25 CEST 2025

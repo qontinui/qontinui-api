@@ -28,6 +28,16 @@ except ImportError:
     logging.warning("Qontinui library not available - using fallback implementation")
     EasyOCREngine = None
 
+# Import SAM3 processor
+try:
+    from qontinui.semantic.processors.sam3_processor import SAM3Processor, HAS_SAM3
+
+    SAM3_AVAILABLE = HAS_SAM3
+except ImportError:
+    SAM3_AVAILABLE = False
+    HAS_SAM3 = False
+    logging.warning("SAM3Processor not available - using fallback implementation")
+
 # Try to import transformers for CLIP fallback
 try:
     import torch
@@ -728,6 +738,71 @@ class RealSemanticProcessor:
 # Initialize the processor
 processor = RealSemanticProcessor()
 
+# Initialize SAM3 processor if available
+sam3_processor = None
+if SAM3_AVAILABLE:
+    try:
+        sam3_processor = SAM3Processor()
+        logger.info("SAM3Processor initialized successfully")
+    except FileNotFoundError as e:
+        logger.warning(f"SAM3 model checkpoint not found: {e}")
+        logger.info("To enable SAM3, ensure the model checkpoint is available")
+        SAM3_AVAILABLE = False
+    except ImportError as e:
+        logger.warning(f"SAM3 dependencies not installed: {e}")
+        logger.info("To enable SAM3, install required dependencies: pip install sam3")
+        SAM3_AVAILABLE = False
+    except Exception as e:
+        logger.warning(f"Failed to initialize SAM3Processor: {e}")
+        logger.info("SAM3 will not be available, falling back to OpenCV implementation")
+        SAM3_AVAILABLE = False
+
+
+def _convert_qontinui_scene_to_api_objects(scene, processor_instance) -> list[SemanticObject]:
+    """Convert qontinui SemanticScene to API SemanticObjects.
+
+    Args:
+        scene: qontinui SemanticScene object
+        processor_instance: RealSemanticProcessor instance for mask encoding
+
+    Returns:
+        List of API SemanticObject instances
+    """
+    objects = []
+    for idx, obj in enumerate(scene.objects):
+        # Convert location to bounding box
+        bbox = obj.location.bbox if hasattr(obj.location, 'bbox') else None
+        if bbox:
+            x, y, w, h = bbox
+        else:
+            # Fallback: try to get bounds from location
+            x = getattr(obj.location, 'x', 0)
+            y = getattr(obj.location, 'y', 0)
+            w = getattr(obj.location, 'width', 50)
+            h = getattr(obj.location, 'height', 50)
+
+        # Encode mask if available
+        pixel_mask = None
+        if hasattr(obj.location, 'mask') and obj.location.mask is not None:
+            try:
+                pixel_mask = processor_instance.encode_mask(obj.location.mask)
+            except Exception as e:
+                logger.warning(f"Failed to encode mask for object {idx}: {e}")
+
+        semantic_obj = SemanticObject(
+            id=f"sam3_{idx}_{x}_{y}",
+            description=obj.description,
+            ocr_text=getattr(obj, 'ocr_text', None),
+            type=obj.object_type.value if hasattr(obj.object_type, 'value') else str(obj.object_type),
+            confidence=float(obj.confidence),
+            bounding_box=BoundingBox(x=int(x), y=int(y), width=int(w), height=int(h)),
+            pixel_mask=pixel_mask,
+            attributes=obj.attributes if hasattr(obj, 'attributes') else {}
+        )
+        objects.append(semantic_obj)
+
+    return objects
+
 
 @router.post("/semantic/process", response_model=SemanticProcessResponse)
 async def process_screenshot(request: SemanticProcessRequest):
@@ -744,9 +819,31 @@ async def process_screenshot(request: SemanticProcessRequest):
             pass
 
         # Detect UI elements with strategy (pass text_prompt for SAM3)
-        if request.strategy == "sam3" and request.text_prompt:
-            # For SAM3 with text prompt, use the mask generator directly
-            objects = processor._segment_with_masks(image, request.options, text_prompt=request.text_prompt)
+        if request.strategy == "sam3":
+            if SAM3_AVAILABLE and sam3_processor is not None:
+                try:
+                    # Use the real SAM3Processor
+                    logger.info(f"Using SAM3Processor with text_prompt: {request.text_prompt}")
+                    scene = sam3_processor.process(image, text_prompt=request.text_prompt)
+
+                    # Convert qontinui SemanticScene to API SemanticObjects
+                    objects = _convert_qontinui_scene_to_api_objects(scene, processor)
+
+                    logger.info(f"SAM3Processor returned {len(objects)} objects")
+                except FileNotFoundError as e:
+                    logger.error(f"SAM3 model checkpoint not found: {e}")
+                    raise HTTPException(
+                        status_code=503,
+                        detail="SAM3 model checkpoint not found. Please ensure the model is downloaded and available."
+                    )
+                except Exception as e:
+                    logger.error(f"SAM3Processor failed: {e}, falling back to OpenCV")
+                    # Fall back to OpenCV implementation
+                    objects = processor._segment_with_masks(image, request.options, text_prompt=request.text_prompt)
+            else:
+                # SAM3 not available, fall back to OpenCV
+                logger.warning("SAM3 not available, using OpenCV fallback")
+                objects = processor._segment_with_masks(image, request.options, text_prompt=request.text_prompt)
         else:
             objects = processor.detect_ui_elements(image, request.options, request.strategy)
 
@@ -845,4 +942,11 @@ async def compare_screenshots(request: SemanticCompareRequest):
 @router.get("/semantic/health")
 async def health_check():
     """Check if semantic API is running."""
-    return {"status": "healthy", "service": "semantic-api"}
+    return {
+        "status": "healthy",
+        "service": "semantic-api",
+        "sam3_available": SAM3_AVAILABLE,
+        "sam3_processor_initialized": sam3_processor is not None,
+        "qontinui_available": QONTINUI_AVAILABLE,
+        "clip_available": CLIP_AVAILABLE
+    }
