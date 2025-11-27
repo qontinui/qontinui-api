@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 def example_basic_exploration():
     """Example: Basic exploration with default configuration."""
+
     # Assume we have a state graph (mock for example)
     class MockStateGraph:
         def __init__(self):

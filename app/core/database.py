@@ -40,7 +40,10 @@ def get_db():
 def init_db():
     """Initialize database tables."""
     # Import all models here to ensure they are registered with Base
-    from app.models import snapshot  # noqa: F401
+    from app.models import (
+        capture,  # noqa: F401
+        snapshot,  # noqa: F401
+    )
 
     # Create all tables
     Base.metadata.create_all(bind=engine)

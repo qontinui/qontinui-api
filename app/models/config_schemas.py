@@ -81,7 +81,9 @@ class SnapshotMetadataSchema(BaseModel):
         end = datetime.fromisoformat(v)
 
         if end < start:
-            raise ValueError(f"end_time ({v}) cannot be before start_time ({info.data['start_time']})")
+            raise ValueError(
+                f"end_time ({v}) cannot be before start_time ({info.data['start_time']})"
+            )
 
         return v
 
@@ -146,7 +148,9 @@ class PatternMetadataSchema(BaseModel):
     total_finds: int = Field(ge=0, description="Total number of find attempts")
     successful_finds: int = Field(ge=0, description="Number of successful finds")
     total_matches: int = Field(ge=0, description="Total number of matches found")
-    avg_duration_ms: float | None = Field(None, ge=0, description="Average duration in milliseconds")
+    avg_duration_ms: float | None = Field(
+        None, ge=0, description="Average duration in milliseconds"
+    )
 
     @field_validator("successful_finds")
     @classmethod
@@ -170,7 +174,9 @@ class ValidationError(Exception):
         file_path: Path to file that failed validation (if applicable)
     """
 
-    def __init__(self, message: str, errors: list[dict[str, Any]] | None = None, file_path: str | None = None):
+    def __init__(
+        self, message: str, errors: list[dict[str, Any]] | None = None, file_path: str | None = None
+    ):
         """Initialize validation error.
 
         Args:
@@ -192,7 +198,9 @@ class ValidationError(Exception):
         return f"{self.message}{file_info}\n{error_details}" if error_details else self.message
 
 
-def validate_snapshot_metadata(data: dict[str, Any], file_path: str | None = None) -> SnapshotMetadataSchema:
+def validate_snapshot_metadata(
+    data: dict[str, Any], file_path: str | None = None
+) -> SnapshotMetadataSchema:
     """Validate snapshot metadata against schema.
 
     Args:
@@ -214,7 +222,9 @@ def validate_snapshot_metadata(data: dict[str, Any], file_path: str | None = Non
         ) from e
 
 
-def validate_action_log_item(data: dict[str, Any], file_path: str | None = None) -> ActionLogItemSchema:
+def validate_action_log_item(
+    data: dict[str, Any], file_path: str | None = None
+) -> ActionLogItemSchema:
     """Validate action log item against schema.
 
     Args:
@@ -236,7 +246,9 @@ def validate_action_log_item(data: dict[str, Any], file_path: str | None = None)
         ) from e
 
 
-def validate_pattern_metadata(data: dict[str, Any], file_path: str | None = None) -> PatternMetadataSchema:
+def validate_pattern_metadata(
+    data: dict[str, Any], file_path: str | None = None
+) -> PatternMetadataSchema:
     """Validate pattern metadata against schema.
 
     Args:

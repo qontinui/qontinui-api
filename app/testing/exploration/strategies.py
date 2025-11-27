@@ -8,7 +8,6 @@ import logging
 import random
 from abc import ABC, abstractmethod
 from collections import defaultdict, deque
-from typing import Any
 
 import numpy as np
 
@@ -230,9 +229,7 @@ class DepthFirstExplorer(ExplorationStrategy):
 
         # Prioritize unexplored transitions
         executed_transitions = self.tracker._executed_transitions
-        unexplored = [
-            (f, t) for f, t in transitions if (f, t) not in executed_transitions
-        ]
+        unexplored = [(f, t) for f, t in transitions if (f, t) not in executed_transitions]
 
         if unexplored:
             _, next_state = unexplored[0]
@@ -376,12 +373,13 @@ class AdaptiveExplorer(ExplorationStrategy):
         if random.random() < self.epsilon:
             # Explore: random action
             _, next_state = random.choice(transitions)
-            logger.debug(f"Q-learning explore: {current_state} -> {next_state} (ε={self.epsilon:.3f})")
+            logger.debug(
+                f"Q-learning explore: {current_state} -> {next_state} (ε={self.epsilon:.3f})"
+            )
         else:
             # Exploit: best Q-value
             q_values = [
-                (to_state, self.q_table[(current_state, to_state)])
-                for _, to_state in transitions
+                (to_state, self.q_table[(current_state, to_state)]) for _, to_state in transitions
             ]
             q_values.sort(key=lambda x: x[1], reverse=True)
             next_state, q_val = q_values[0]
@@ -396,8 +394,12 @@ class AdaptiveExplorer(ExplorationStrategy):
 
         return next_state
 
-    def update_q_value(self, success: bool, new_state_discovered: bool = False,
-                       new_transition_discovered: bool = False) -> None:
+    def update_q_value(
+        self,
+        success: bool,
+        new_state_discovered: bool = False,
+        new_transition_discovered: bool = False,
+    ) -> None:
         """Update Q-value based on outcome.
 
         Args:
@@ -425,8 +427,7 @@ class AdaptiveExplorer(ExplorationStrategy):
         next_transitions = self.get_available_transitions(self.last_action)
         if next_transitions:
             max_next_q = max(
-                self.q_table[(self.last_action, to_state)]
-                for _, to_state in next_transitions
+                self.q_table[(self.last_action, to_state)] for _, to_state in next_transitions
             )
         else:
             max_next_q = 0.0

@@ -41,7 +41,9 @@ class MockExecutionRequest(BaseModel):
     initial_states: list[str] = Field(..., description="Initial active states")
     actions: list[ActionSpec] = Field(..., description="List of actions to execute")
 
-    snapshot_run_id: str | None = Field(None, description="Single snapshot run ID (converted to list)")
+    snapshot_run_id: str | None = Field(
+        None, description="Single snapshot run ID (converted to list)"
+    )
 
     def __init__(self, **data):
         # Convert single snapshot_run_id to snapshot_run_ids list
@@ -1268,3 +1270,10 @@ def get_coverage_report_multi(
         raise HTTPException(
             status_code=500, detail=f"Coverage report generation failed: {str(e)}"
         ) from e
+
+
+# Note: Integration testing uses the existing workflow execution endpoints
+# with mode="full_mock" to enable the qontinui library's MockMode.
+# See /workflow/execute in main.py for the implementation.
+# The mock system uses historical data from ActionHistories and returns
+# random selections, making each test run different.

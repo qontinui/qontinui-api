@@ -200,7 +200,9 @@ class SnapshotSyncService:
 
             # Validate pattern metadata using Pydantic schema
             try:
-                pattern_validated = validate_pattern_metadata(pattern_metadata_raw, str(metadata_file))
+                pattern_validated = validate_pattern_metadata(
+                    pattern_metadata_raw, str(metadata_file)
+                )
             except ValidationError as e:
                 # Log validation error but continue processing other patterns
                 logger.warning(f"Skipping invalid pattern metadata for {pattern_id}: {e}")
