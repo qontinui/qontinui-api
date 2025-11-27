@@ -5,8 +5,6 @@ This adapter bridges the gap between the frontend's state representation
 and the qontinui library's State class requirements.
 """
 
-import base64
-from io import BytesIO
 from typing import Any
 
 from qontinui.model.element import Image as QontinuiImage

@@ -99,7 +99,9 @@ class ExplorationConfig:
     hybrid_phase_iterations: list[int] = field(default_factory=lambda: [100, 200, 300])
     """Iteration thresholds for phase transitions."""
 
-    hybrid_phase_strategies: list[str] = field(default_factory=lambda: ["random_walk", "greedy", "adaptive"])
+    hybrid_phase_strategies: list[str] = field(
+        default_factory=lambda: ["random_walk", "greedy", "adaptive"]
+    )
     """Strategies for each phase."""
 
     hybrid_dynamic_switching: bool = True
@@ -288,7 +290,7 @@ class ExplorationConfig:
         """
         import yaml
 
-        with open(yaml_path, "r") as f:
+        with open(yaml_path) as f:
             data = yaml.safe_load(f)
 
         return cls.from_dict(data)
@@ -305,7 +307,7 @@ class ExplorationConfig:
         """
         import json
 
-        with open(json_path, "r") as f:
+        with open(json_path) as f:
             data = json.load(f)
 
         return cls.from_dict(data)

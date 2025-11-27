@@ -5,22 +5,20 @@ Tests transition recording, coverage calculation, deficiency detection,
 and path exploration strategies.
 """
 
-import pytest
 from datetime import datetime
-from typing import Dict, List, Set
+
+import pytest
 
 
 class MockPathTracker:
     """Mock PathTracker for testing (replace with actual implementation)."""
 
     def __init__(self):
-        self.transitions: List[Dict] = []
-        self.states_visited: Set[str] = set()
-        self.coverage_map: Dict[str, int] = {}
+        self.transitions: list[dict] = []
+        self.states_visited: set[str] = set()
+        self.coverage_map: dict[str, int] = {}
 
-    def record_transition(
-        self, from_state: str, to_state: str, metadata: Dict = None
-    ) -> None:
+    def record_transition(self, from_state: str, to_state: str, metadata: dict = None) -> None:
         """Record a state transition."""
         self.transitions.append(
             {
@@ -48,7 +46,7 @@ class MockPathTracker:
         transition_key = f"{from_state}->{to_state}"
         return self.coverage_map.get(transition_key, 0)
 
-    def export_results(self) -> Dict:
+    def export_results(self) -> dict:
         """Export path tracking results."""
         return {
             "total_transitions": len(self.transitions),
@@ -285,9 +283,7 @@ class TestDeficiencyDetection:
         path_tracker.record_transition("dashboard", "settings")  # Only once
 
         # Paths executed only once might be suspicious
-        low_execution_paths = {
-            k: v for k, v in path_tracker.coverage_map.items() if v < 2
-        }
+        low_execution_paths = {k: v for k, v in path_tracker.coverage_map.items() if v < 2}
 
         assert "dashboard->settings" in low_execution_paths
         assert "login->dashboard" not in low_execution_paths

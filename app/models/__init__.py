@@ -1,5 +1,14 @@
 """SQLAlchemy models for the application."""
 
+from app.models.capture import (
+    ActionFrame,
+    CaptureSession,
+    FrameIndex,
+    HistoricalResult,
+    InputEvent,
+    InputEventType,
+    StorageBackend,
+)
 from app.models.snapshot import (
     SnapshotAction,
     SnapshotMatch,
@@ -8,8 +17,17 @@ from app.models.snapshot import (
 )
 
 __all__ = [
+    # Snapshot models
     "SnapshotRun",
     "SnapshotAction",
     "SnapshotPattern",
     "SnapshotMatch",
+    # Capture models
+    "CaptureSession",
+    "InputEvent",
+    "InputEventType",
+    "FrameIndex",
+    "ActionFrame",
+    "HistoricalResult",
+    "StorageBackend",
 ]

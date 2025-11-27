@@ -18,11 +18,12 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image as PILImage
 from pydantic import BaseModel
-from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
 from app.adapters.state_adapter import convert_multiple_states
+from app.routes.capture import router as capture_router
 from app.routes.integration_testing import router as integration_testing_router
 from app.routes.snapshot_search import router as snapshot_search_router
 
@@ -39,14 +40,15 @@ from masked_patterns_api import router as masked_patterns_router
 from qontinui.actions import FindOptions
 
 # Import Pydantic schemas from qontinui library
-from qontinui.config.schema import Action as ConfigAction, Workflow
-from qontinui.json_executor.config_parser import State as ConfigState
+from qontinui.config.schema import Action as ConfigAction
+from qontinui.config.schema import Workflow
 
 # Import actual qontinui library
 from qontinui.find import Find
+from qontinui.json_executor.config_parser import State as ConfigState
 from qontinui.model.element import Image, Pattern, Region
 from qontinui.model.search_regions import SearchRegions
-from qontinui.model.state import State, StateImage
+from qontinui.model.state import StateImage
 from qontinui.model.state.state_store import StateStore
 from qontinui.state_management.manager import QontinuiStateManager
 
@@ -63,7 +65,10 @@ app = FastAPI(
 )
 
 # Initialize rate limiter
-limiter = Limiter(key_func=get_remote_address, storage_uri=f"redis://{os.getenv('REDIS_HOST', 'localhost')}:{os.getenv('REDIS_PORT', 6379)}/{os.getenv('REDIS_DB', 0)}")
+limiter = Limiter(
+    key_func=get_remote_address,
+    storage_uri=f"redis://{os.getenv('REDIS_HOST', 'localhost')}:{os.getenv('REDIS_PORT', 6379)}/{os.getenv('REDIS_DB', 0)}",
+)
 app.state.limiter = limiter
 
 
@@ -81,6 +86,7 @@ async def custom_rate_limit_handler(request: Request, exc: RateLimitExceeded):
             "retry_after": getattr(exc, "detail", "60 seconds"),
         },
     )
+
 
 # Initialize Redis client for session storage
 redis_client = redis.Redis(
@@ -102,9 +108,7 @@ def save_session(session_id: str, session: "MockSession", ttl: int = 3600):
         ttl: Time to live in seconds (default: 3600 = 1 hour)
     """
     try:
-        redis_client.setex(
-            f"mock_session:{session_id}", ttl, json.dumps(session.dict())
-        )
+        redis_client.setex(f"mock_session:{session_id}", ttl, json.dumps(session.dict()))
     except Exception as e:
         print(f"Error saving session {session_id} to Redis: {e}")
         raise
@@ -178,6 +182,9 @@ app.include_router(snapshot_search_router, prefix="/api")
 # Include Integration Testing router
 app.include_router(integration_testing_router, prefix="/api")
 
+# Include Capture router (video capture, historical data, frame extraction)
+app.include_router(capture_router, prefix="/api")
+
 
 # All user/project management endpoints are handled by qontinui-web/backend
 # This API focuses on stateless qontinui library operations
@@ -242,6 +249,7 @@ class MockSession(BaseModel):
     execution_history: list[dict[str, Any]] = []
     initial_states: list[str] = []  # States marked as initial
     action_snapshots: list[dict[str, Any]] = []  # Pre-recorded snapshots for integration testing
+    mode: str = "hybrid"  # Execution mode: "hybrid" or "full_mock"
 
 
 class PatternOptimizationRequest(BaseModel):
@@ -330,9 +338,9 @@ async def find_image(request: Request, find_request: FindRequest):
     This is the REAL pattern matching that qontinui uses in production.
     """
     try:
+        from qontinui.find.filters import SimilarityFilter
         from qontinui.find.find_executor import FindExecutor
         from qontinui.find.matchers import TemplateMatcher
-        from qontinui.find.filters import SimilarityFilter, NMSFilter
         from static_screenshot_provider import StaticScreenshotProvider
 
         print(f"[find] Received request - similarity: {find_request.similarity}")
@@ -355,19 +363,14 @@ async def find_image(request: Request, find_request: FindRequest):
         screenshot_provider = StaticScreenshotProvider(screenshot_pil)
 
         # Configure template matcher
-        matcher = TemplateMatcher(
-            method="TM_CCOEFF_NORMED",
-            nms_overlap_threshold=0.3
-        )
+        matcher = TemplateMatcher(method="TM_CCOEFF_NORMED", nms_overlap_threshold=0.3)
 
         # Configure filters
         filters = [SimilarityFilter(min_similarity=find_request.similarity)]
 
         # Create executor
         executor = FindExecutor(
-            screenshot_provider=screenshot_provider,
-            matcher=matcher,
-            filters=filters
+            screenshot_provider=screenshot_provider, matcher=matcher, filters=filters
         )
 
         # Set search region if provided
@@ -387,24 +390,27 @@ async def find_image(request: Request, find_request: FindRequest):
             pattern=template_pattern,
             search_region=search_region,
             similarity=find_request.similarity,
-            find_all=False
+            find_all=False,
         )
         print(f"[find] Found {len(match_list)} matches")
 
         if match_list and len(match_list) > 0:
             match = match_list[0]
-            print(f"[find] Match found! Score: {match.similarity if hasattr(match, 'similarity') else 'N/A'}")
+            print(
+                f"[find] Match found! Score: {match.similarity if hasattr(match, 'similarity') else 'N/A'}"
+            )
             response = match_to_response(match)
             print(f"[find] Response: {response}")
             return response
 
         # No match found
-        print(f"[find] No match found")
+        print("[find] No match found")
         return MatchResponse(found=False, region=None, score=0.0, center=None)
 
     except Exception as e:
         print(f"[find] Error: {str(e)}")
         import traceback
+
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e)) from e
 
@@ -417,9 +423,9 @@ async def find_all_images(request: Request, find_request: FindRequest):
     Returns all matches with their scores and regions.
     """
     try:
+        from qontinui.find.filters import NMSFilter, SimilarityFilter
         from qontinui.find.find_executor import FindExecutor
         from qontinui.find.matchers import TemplateMatcher
-        from qontinui.find.filters import SimilarityFilter, NMSFilter
         from static_screenshot_provider import StaticScreenshotProvider
 
         print(f"[find_all] Starting pattern matching with similarity={find_request.similarity}")
@@ -437,22 +443,17 @@ async def find_all_images(request: Request, find_request: FindRequest):
         screenshot_provider = StaticScreenshotProvider(screenshot_pil)
 
         # Configure template matcher
-        matcher = TemplateMatcher(
-            method="TM_CCOEFF_NORMED",
-            nms_overlap_threshold=0.3
-        )
+        matcher = TemplateMatcher(method="TM_CCOEFF_NORMED", nms_overlap_threshold=0.3)
 
         # Configure filters
         filters = [
             SimilarityFilter(min_similarity=find_request.similarity),
-            NMSFilter(iou_threshold=0.3)
+            NMSFilter(iou_threshold=0.3),
         ]
 
         # Create executor
         executor = FindExecutor(
-            screenshot_provider=screenshot_provider,
-            matcher=matcher,
-            filters=filters
+            screenshot_provider=screenshot_provider, matcher=matcher, filters=filters
         )
 
         # Set search region if provided
@@ -472,7 +473,7 @@ async def find_all_images(request: Request, find_request: FindRequest):
             pattern=template_pattern,
             search_region=search_region,
             similarity=find_request.similarity,
-            find_all=True
+            find_all=True,
         )
         print(f"[find_all] Found {len(match_list)} matches")
 
@@ -1249,7 +1250,28 @@ class WorkflowExecutionResponse(BaseModel):
 
 @app.post("/workflow/execute")
 async def execute_workflow(request: WorkflowExecutionRequest):
-    """Execute a workflow in hybrid mock mode"""
+    """Execute a workflow in hybrid or full mock mode.
+
+    When mode="full_mock" (integration testing):
+    - Sets qontinui library ExecutionMode to MockMode.MOCK
+    - All actions use mock implementations that return historical data
+    - Useful for testing workflows without live GUI automation
+
+    When mode="hybrid" (default):
+    - Uses real pattern matching on provided screenshots
+    - Actions that don't require GUI interaction are mocked
+    """
+    from qontinui.config.execution_mode import (
+        ExecutionModeConfig,
+        MockMode,
+        set_execution_mode,
+    )
+
+    # Set execution mode based on request
+    if request.mode == "full_mock":
+        # Integration testing mode - use qontinui library's mock system
+        set_execution_mode(ExecutionModeConfig(mode=MockMode.MOCK))
+
     # Create a mock session for the workflow
     session_id = str(uuid.uuid4())
 
@@ -1280,6 +1302,7 @@ async def execute_workflow(request: WorkflowExecutionRequest):
         execution_history=[],
         initial_states=initial_states,
         action_snapshots=[],
+        mode=request.mode or "hybrid",
     )
 
     # Save session to Redis with 1 hour TTL
@@ -1397,7 +1420,31 @@ async def execute_workflow_step(session_id: str, action: ConfigAction):
         "message": message,
         "duration": duration,
         "timestamp": str(uuid.uuid4()),
+        "historical_result_id": None,  # Will be populated when using historical data
     }
+
+    # If running in mock mode with historical data, try to get a historical result ID
+    if hasattr(session, "mode") and session.mode == "full_mock":
+        try:
+            from app.services.capture_service import get_capture_service
+
+            capture_service = get_capture_service()
+            # Get a random historical result for this action type/pattern
+            pattern_id = None
+            if hasattr(action.config, "image_id"):
+                pattern_id = action.config.image_id
+            elif hasattr(action.config, "object_id"):
+                pattern_id = action.config.object_id
+
+            historical = capture_service.get_random_historical_result_sync(
+                pattern_id=pattern_id,
+                action_type=action_type.upper(),
+                success_only=False,
+            )
+            if historical:
+                result["historical_result_id"] = historical.id
+        except Exception as e:
+            logger.warning(f"Failed to get historical result ID: {e}")
 
     # Add to session history
     session.execution_history.append(result)
@@ -1433,6 +1480,8 @@ async def get_workflow_status(session_id: str):
 @app.post("/workflow/complete/{session_id}")
 async def complete_workflow(session_id: str):
     """Mark a workflow execution as complete"""
+    from qontinui.config.execution_mode import reset_execution_mode
+
     session = get_session(session_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -1452,6 +1501,9 @@ async def complete_workflow(session_id: str):
 
     # Clean up session from Redis
     delete_session(session_id)
+
+    # Reset execution mode to environment defaults
+    reset_execution_mode()
 
     return result
 

@@ -21,7 +21,6 @@ from fastapi import (
     APIRouter,
     BackgroundTasks,
     File,
-    Form,
     HTTPException,
     UploadFile,
     WebSocket,
@@ -39,17 +38,15 @@ from qontinui.discovery import (
 )
 from qontinui.discovery.deletion_manager import DeletionManager
 from qontinui.discovery.models import AnalysisConfig, DeleteOptions
-
-# Import state detection components
-from qontinui.discovery.state_detection.differential_consistency_detector import (
-    DifferentialConsistencyDetector,
-    StateRegion,
-)
 from qontinui.discovery.state_construction.state_builder import (
     StateBuilder,
     TransitionInfo,
 )
-from qontinui.discovery.state_construction.ocr_name_generator import OCRNameGenerator
+
+# Import state detection components
+from qontinui.discovery.state_detection.differential_consistency_detector import (
+    DifferentialConsistencyDetector,
+)
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -418,7 +415,9 @@ async def start_analysis(request: AnalysisRequest, background_tasks: BackgroundT
         config = AnalysisConfig(
             min_region_size=tuple(config_dict["min_region_size"]),
             max_region_size=tuple(config_dict["max_region_size"]),
-            color_tolerance=config_dict["color_tolerance"],  # Derived from similarity_threshold in UI
+            color_tolerance=config_dict[
+                "color_tolerance"
+            ],  # Derived from similarity_threshold in UI
             stability_threshold=config_dict["stability_threshold"],
             variance_threshold=config_dict["variance_threshold"],
             min_screenshots_present=config_dict["min_screenshots_present"],
@@ -1117,7 +1116,9 @@ async def analyze_transitions(request: AnalyzeTransitionsRequest, project_id: st
             for region in regions
         ]
 
-        logger.info(f"Detected {len(regions)} state regions from {len(screenshot_pairs)} transitions")
+        logger.info(
+            f"Detected {len(regions)} state regions from {len(screenshot_pairs)} transitions"
+        )
 
         return {
             "regions": region_responses,
