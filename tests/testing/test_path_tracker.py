@@ -264,10 +264,10 @@ class TestDeficiencyDetection:
         path_tracker.record_transition("login", "dashboard")
         path_tracker.record_transition("dashboard", "profile")
 
-        all_transitions = set(
+        all_transitions = {
             f"{from_state}->{to_state}"
             for from_state, to_state in workflow_definition["transitions"]
-        )
+        }
         executed_transitions = set(path_tracker.coverage_map.keys())
         unexecuted = all_transitions - executed_transitions
 

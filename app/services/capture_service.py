@@ -376,7 +376,7 @@ class CaptureService:
             query = query.filter(HistoricalResult.action_type == action_type)
 
         if success_only:
-            query = query.filter(HistoricalResult.success == True)
+            query = query.filter(HistoricalResult.success is True)
 
         if workflow_id:
             query = query.filter(HistoricalResult.workflow_id == workflow_id)
@@ -571,7 +571,7 @@ class CaptureService:
             query = query.filter(HistoricalResult.action_type == action_type)
 
         if success_only:
-            query = query.filter(HistoricalResult.success == True)
+            query = query.filter(HistoricalResult.success is True)
 
         if workflow_id:
             query = query.filter(HistoricalResult.workflow_id == workflow_id)

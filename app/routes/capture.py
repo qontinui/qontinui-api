@@ -211,7 +211,7 @@ async def complete_session(
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.post("/sessions/{session_id}/build-index")
@@ -225,7 +225,7 @@ async def build_frame_index(session_id: str, db: Session = Depends(get_db)):
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/sessions/{session_id}", response_model=SessionResponse)
@@ -275,7 +275,7 @@ async def record_input_events(request: RecordEventsRequest, db: Session = Depend
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/events/{session_id}", response_model=list[InputEventResponse])
@@ -330,7 +330,7 @@ async def index_historical_results(
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.post("/historical/random", response_model=Optional[HistoricalResultResponse])
@@ -493,4 +493,4 @@ async def get_frame_at_timestamp(
 
         return Response(content=frame_data, media_type="image/jpeg")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e

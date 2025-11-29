@@ -837,7 +837,7 @@ async def process_screenshot(request: SemanticProcessRequest):
                     raise HTTPException(
                         status_code=503,
                         detail="SAM3 model checkpoint not found. Please ensure the model is downloaded and available.",
-                    )
+                    ) from e
                 except Exception as e:
                     logger.error(f"SAM3Processor failed: {e}, falling back to OpenCV")
                     # Fall back to OpenCV implementation
