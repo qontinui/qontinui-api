@@ -6,6 +6,7 @@ Exposes real qontinui library operations for web-based testing
 import base64
 import io
 import json
+import logging
 import os
 import time
 import uuid
@@ -55,6 +56,9 @@ from qontinui.state_management.manager import QontinuiStateManager
 # Scheduler API removed - belongs in qontinui-web/backend with user auth
 # Import semantic API router
 from semantic_api import router as semantic_router
+
+# Logger for this module
+logger = logging.getLogger(__name__)
 
 # Import State Discovery API router
 from state_discovery_api import router as state_discovery_router
