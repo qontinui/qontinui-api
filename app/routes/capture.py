@@ -185,7 +185,7 @@ async def create_session(request: CreateSessionRequest, db: Session = Depends(ge
         )
         return session
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
 
 @router.post("/sessions/{session_id}/complete", response_model=SessionResponse)
@@ -209,7 +209,7 @@ async def complete_session(
         )
         return session
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
 
@@ -223,7 +223,7 @@ async def build_frame_index(session_id: str, db: Session = Depends(get_db)):
         count = await service.build_frame_index(session_id)
         return {"session_id": session_id, "frames_indexed": count}
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
 
@@ -273,7 +273,7 @@ async def record_input_events(request: RecordEventsRequest, db: Session = Depend
         count = await service.record_input_events(request.session_id, events_data)
         return {"recorded": count}
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
 
@@ -309,7 +309,7 @@ async def get_input_events(
             for e in events
         ]
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from e
 
 
 # =============================================================================
@@ -328,7 +328,7 @@ async def index_historical_results(
         count = await service.index_historical_results(snapshot_run_id, capture_session_id)
         return {"indexed": count}
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
 
