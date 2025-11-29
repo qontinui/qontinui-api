@@ -331,7 +331,7 @@ class PathExplorer:
                 success, duration_ms, metadata = executor_callback(from_state, to_state)
 
                 # Record in PathTracker
-                execution = self.tracker.record_transition(
+                self.tracker.record_transition(
                     from_state=from_state,
                     to_state=to_state,
                     success=success,

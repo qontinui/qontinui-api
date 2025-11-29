@@ -119,7 +119,7 @@ class PathDiversityEngine:
         A.append((first_cost, first_path))
 
         # Find k-1 more paths
-        for k_i in range(1, k):
+        for _k_i in range(1, k):
             if not A:
                 break
 
