@@ -92,7 +92,7 @@ class CaptureSession(Base):
     total_frames = Column(Integer, nullable=True)
 
     # Storage information
-    storage_backend = Column(Enum(StorageBackend), nullable=False, default=StorageBackend.LOCAL)
+    storage_backend: Column[StorageBackend] = Column(Enum(StorageBackend), nullable=False, default=StorageBackend.LOCAL)  # type: ignore[assignment]
     video_path = Column(Text, nullable=False)  # Local path or S3 key
     video_size_bytes = Column(BigInteger, nullable=True)
 
@@ -129,7 +129,7 @@ class CaptureSession(Base):
 
     # Additional metadata
     metadata_json = Column(JSONB, nullable=True)
-    tags = Column(ARRAY(Text), nullable=True)
+    tags: list[str] = Column(ARRAY(Text), nullable=True)  # type: ignore[assignment]
     notes = Column(Text, nullable=True)
 
     # Audit timestamps
@@ -184,7 +184,7 @@ class InputEvent(Base):
     timestamp_ms = Column(BigInteger, nullable=False, index=True)
 
     # Event type
-    event_type = Column(Enum(InputEventType), nullable=False, index=True)
+    event_type: Column[InputEventType] = Column(Enum(InputEventType), nullable=False, index=True)  # type: ignore[assignment]
 
     # Mouse position (for mouse events)
     mouse_x = Column(Integer, nullable=True)
@@ -307,7 +307,7 @@ class ActionFrame(Base):
 
     # Cached frame path (if extracted and cached)
     cached_frame_path = Column(Text, nullable=True)
-    cache_storage_backend = Column(Enum(StorageBackend), nullable=True)
+    cache_storage_backend: Column[StorageBackend | None] = Column(Enum(StorageBackend), nullable=True)  # type: ignore[assignment]
 
     # Relationship
     capture_session = relationship("CaptureSession", back_populates="action_frames")
@@ -363,7 +363,7 @@ class HistoricalResult(Base):
     pattern_id = Column(String(255), nullable=True, index=True)
     pattern_name = Column(String(255), nullable=True)
     action_type = Column(String(50), nullable=False, index=True)
-    active_states = Column(ARRAY(Text), nullable=True)
+    active_states: list[str] = Column(ARRAY(Text), nullable=True)  # type: ignore[assignment]
 
     # Result data
     success = Column(Boolean, nullable=False, index=True)

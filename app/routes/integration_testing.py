@@ -242,7 +242,7 @@ def execute_mock_workflow(
     service = SnapshotSyncService(db)
 
     # Load data from all specified snapshot runs
-    all_action_histories = {}
+    all_action_histories: dict[str, Any] = {}
     all_screenshot_registries = []
 
     for run_id in request.snapshot_run_ids:
@@ -255,7 +255,7 @@ def execute_mock_workflow(
         snapshot_dir = Path(snapshot_run.run_directory)
 
         # Build action histories from database
-        run_histories = _load_action_histories(db, snapshot_run.id)
+        run_histories = _load_action_histories(db, int(snapshot_run.id))
 
         # Merge action histories (combine histories for same pattern_id)
         for pattern_id, history in run_histories.items():
@@ -283,7 +283,7 @@ def execute_mock_workflow(
             screenshot_registry=merged_registry,
         )
 
-        result = executor.execute_workflow(
+        result = executor.execute_workflow(  # type: ignore[attr-defined]
             workflow_id=request.workflow_id,
             workflow_name=request.workflow_name,
             actions=[action.dict() for action in request.actions],
@@ -626,7 +626,10 @@ def _load_action_histories(db: Session, snapshot_run_id: int) -> dict[str, Any]:
         for action in actions:
             # Reconstruct Match objects from action data
             match_list = []
-            action_data = action.action_data_json or {}
+            action_data_column: Any = action.action_data_json or {}
+            action_data: dict[str, Any] = (
+                action_data_column if isinstance(action_data_column, dict) else {}
+            )
             for match_data in action_data.get("matches", []):
                 region_data = match_data.get("region")
                 if region_data:
@@ -642,20 +645,22 @@ def _load_action_histories(db: Session, snapshot_run_id: int) -> dict[str, Any]:
 
             # Create ActionRecord
             record = ActionRecord(
-                action_type=action.action_type,
-                action_success=action.success,
+                action_type=str(action.action_type),
+                action_success=bool(action.success),
                 match_list=match_list,
                 duration=float(action.duration_ms / 1000) if action.duration_ms else 0.0,
-                timestamp=action.timestamp,
+                timestamp=(
+                    action.timestamp if isinstance(action.timestamp, datetime) else datetime.now()
+                ),
                 active_states=set(action.active_states or []),
                 metadata=action_data.get("metadata", {}),
             )
 
             history.add_record(record)
 
-        action_histories[pattern.pattern_id] = history
+        action_histories[str(pattern.pattern_id)] = history
 
-    return action_histories
+    return action_histories  # type: ignore[return-value]
 
 
 def _load_screenshot_registry(snapshot_dir: Path) -> Any:
@@ -812,16 +817,16 @@ def analyze_coverage(
     try:
         analyzer = StateCoverageAnalyzer(db)
         report = analyzer.analyze_coverage(
-            workflow_id=request.workflow_id,
-            workflow_name=request.workflow_name,
+            process_id=request.workflow_id,
+            process_name=request.workflow_name,
             snapshot_run_ids=request.snapshot_run_ids,
             expected_states=request.expected_states,
         )
 
         # Convert to response model
         return CoverageReportResponse(
-            workflow_id=report.workflow_id,
-            workflow_name=report.workflow_name,
+            workflow_id=report.process_id,
+            workflow_name=report.process_name,
             snapshot_run_ids=report.snapshot_run_ids,
             analysis_time=report.analysis_time.isoformat(),
             overall_coverage_percentage=report.overall_coverage_percentage,
@@ -1089,7 +1094,7 @@ def recommend_snapshots(
         service = SnapshotRecommendationService(db)
 
         # Build filters
-        filters = {}
+        filters: dict[str, Any] = {}
         if request.workflow_id is not None:
             filters["workflow_id"] = request.workflow_id
         if request.execution_mode:
@@ -1208,7 +1213,7 @@ def set_snapshot_priority(
         if not snapshot:
             raise HTTPException(status_code=404, detail=f"Snapshot run {run_id} not found")
 
-        snapshot.priority = request.priority
+        snapshot.priority = int(request.priority)  # type: ignore[assignment]
         db.commit()
 
         return {

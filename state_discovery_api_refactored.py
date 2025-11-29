@@ -36,9 +36,86 @@ from .state_discovery.upload_storage import storage
 # Import our refactored modules
 from .state_discovery.websocket_manager import manager
 
+
+# Analysis state tracking
+class AnalysisTracker:
+    """Track analysis status, results, and cancellation."""
+
+    def __init__(self):
+        self.analyses: dict[str, dict] = {}
+        self.cancelled: set[str] = set()
+
+    def start_analysis(self, analysis_id: str, upload_id: str, config: dict):
+        """Register a new analysis."""
+        self.analyses[analysis_id] = {
+            "analysis_id": analysis_id,
+            "upload_id": upload_id,
+            "status": "processing",
+            "progress": {"percentage": 0, "stage": "starting"},
+            "started_at": datetime.now().isoformat(),
+            "updated_at": datetime.now().isoformat(),
+            "config": config,
+            "results": None,
+            "error": None,
+        }
+
+    def update_progress(self, analysis_id: str, percentage: int, stage: str):
+        """Update analysis progress."""
+        if analysis_id in self.analyses:
+            self.analyses[analysis_id]["progress"] = {
+                "percentage": percentage,
+                "stage": stage,
+            }
+            self.analyses[analysis_id]["updated_at"] = datetime.now().isoformat()
+
+    def complete_analysis(self, analysis_id: str, results: dict):
+        """Mark analysis as complete with results."""
+        if analysis_id in self.analyses:
+            self.analyses[analysis_id]["status"] = "complete"
+            self.analyses[analysis_id]["progress"] = {
+                "percentage": 100,
+                "stage": "complete",
+            }
+            self.analyses[analysis_id]["results"] = results
+            self.analyses[analysis_id]["completed_at"] = datetime.now().isoformat()
+            self.analyses[analysis_id]["updated_at"] = datetime.now().isoformat()
+
+    def fail_analysis(self, analysis_id: str, error: str):
+        """Mark analysis as failed."""
+        if analysis_id in self.analyses:
+            self.analyses[analysis_id]["status"] = "failed"
+            self.analyses[analysis_id]["error"] = error
+            self.analyses[analysis_id]["updated_at"] = datetime.now().isoformat()
+
+    def cancel_analysis(self, analysis_id: str):
+        """Mark analysis as cancelled."""
+        self.cancelled.add(analysis_id)
+        if analysis_id in self.analyses:
+            self.analyses[analysis_id]["status"] = "cancelled"
+            self.analyses[analysis_id]["updated_at"] = datetime.now().isoformat()
+
+    def is_cancelled(self, analysis_id: str) -> bool:
+        """Check if analysis has been cancelled."""
+        return analysis_id in self.cancelled
+
+    def get_status(self, analysis_id: str) -> dict | None:
+        """Get analysis status."""
+        return self.analyses.get(analysis_id)
+
+    def get_results(self, analysis_id: str) -> dict | None:
+        """Get analysis results."""
+        analysis = self.analyses.get(analysis_id)
+        if analysis and analysis.get("status") == "complete":
+            return analysis.get("results")
+        return None
+
+
+# Global analysis tracker
+analysis_tracker = AnalysisTracker()
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from qontinui.discovery.models import AnalysisConfig
+from qontinui.discovery.models import AnalysisConfig  # noqa: E402
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -244,9 +321,17 @@ async def websocket_endpoint(websocket: WebSocket, analysis_id: str):
                     # Respond to ping
                     await manager.send_update(analysis_id, {"type": "pong"})
                 elif message.get("type") == "cancel":
-                    # TODO: Implement analysis cancellation
+                    # Handle analysis cancellation
                     print(f"[API-WS] Cancel requested for {analysis_id}")
-                    pass
+                    analysis_tracker.cancel_analysis(analysis_id)
+                    await manager.send_update(
+                        analysis_id,
+                        {
+                            "type": "status",
+                            "status": "cancelled",
+                            "message": "Analysis cancelled by user",
+                        },
+                    )
 
             except json.JSONDecodeError:
                 logger.warning(f"Invalid JSON from {analysis_id}: {data}")
@@ -262,7 +347,19 @@ async def get_analysis_status(analysis_id: str):
 
     Single Responsibility: Return current analysis status.
     """
-    # Check if analysis is in active connections (still running)
+    # Check tracked analysis status
+    tracked_status = analysis_tracker.get_status(analysis_id)
+    if tracked_status:
+        return {
+            "analysis_id": analysis_id,
+            "status": tracked_status["status"],
+            "progress": tracked_status["progress"],
+            "started_at": tracked_status["started_at"],
+            "updated_at": tracked_status["updated_at"],
+            "error": tracked_status.get("error"),
+        }
+
+    # Check if analysis is in active connections (still running but not tracked)
     if analysis_id in manager.active_connections:
         return {
             "analysis_id": analysis_id,
@@ -272,14 +369,8 @@ async def get_analysis_status(analysis_id: str):
             "updated_at": datetime.now().isoformat(),
         }
 
-    # TODO: Check if analysis is complete in storage
-    return {
-        "analysis_id": analysis_id,
-        "status": "complete",
-        "progress": {"percentage": 100, "stage": "complete"},
-        "started_at": datetime.now().isoformat(),
-        "updated_at": datetime.now().isoformat(),
-    }
+    # Analysis not found
+    raise HTTPException(status_code=404, detail=f"Analysis {analysis_id} not found")
 
 
 @router.get("/results/{analysis_id}")
@@ -288,14 +379,36 @@ async def get_analysis_results(analysis_id: str):
 
     Single Responsibility: Retrieve and return analysis results.
     """
-    # TODO: Retrieve from results storage
-    # For now, return mock data
-    return {
-        "analysis_id": analysis_id,
-        "states": [],
-        "state_images": [],
-        "statistics": {"total_states": 0, "total_state_images": 0, "analysis_time": 0},
-    }
+    # Retrieve from analysis tracker
+    results = analysis_tracker.get_results(analysis_id)
+    if results:
+        return {
+            "analysis_id": analysis_id,
+            "states": results.get("states", []),
+            "state_images": results.get("state_images", []),
+            "statistics": results.get("statistics", {}),
+        }
+
+    # Check if analysis exists but is not complete
+    status = analysis_tracker.get_status(analysis_id)
+    if status:
+        if status["status"] == "processing":
+            raise HTTPException(
+                status_code=202,
+                detail="Analysis is still in progress",
+            )
+        elif status["status"] == "cancelled":
+            raise HTTPException(
+                status_code=410,
+                detail="Analysis was cancelled",
+            )
+        elif status["status"] == "failed":
+            raise HTTPException(
+                status_code=500,
+                detail=f"Analysis failed: {status.get('error', 'Unknown error')}",
+            )
+
+    raise HTTPException(status_code=404, detail=f"Analysis {analysis_id} not found")
 
 
 @router.post("/cancel/{analysis_id}")
@@ -304,9 +417,27 @@ async def cancel_analysis(analysis_id: str):
 
     Single Responsibility: Handle analysis cancellation request.
     """
-    # TODO: Implement actual cancellation
-    print(f"[API] Cancellation requested for {analysis_id}")
-    logger.info(f"Cancellation requested for {analysis_id}")
+    # Check if analysis exists
+    status = analysis_tracker.get_status(analysis_id)
+    if not status and analysis_id not in manager.active_connections:
+        raise HTTPException(status_code=404, detail=f"Analysis {analysis_id} not found")
+
+    # Mark as cancelled
+    analysis_tracker.cancel_analysis(analysis_id)
+
+    # Notify via WebSocket if connected
+    if analysis_id in manager.active_connections:
+        await manager.send_update(
+            analysis_id,
+            {
+                "type": "status",
+                "status": "cancelled",
+                "message": "Analysis cancelled by user",
+            },
+        )
+
+    print(f"[API] Cancellation processed for {analysis_id}")
+    logger.info(f"Cancellation processed for {analysis_id}")
 
     return {
         "analysis_id": analysis_id,

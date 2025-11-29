@@ -108,7 +108,8 @@ class LocalStorageBackend(StorageBackendInterface):
         """Get frame image data."""
         full_path = self._full_path(path)
         async with aiofiles.open(full_path, "rb") as f:
-            return await f.read()
+            data: bytes = await f.read()
+            return data
 
     async def delete_session_data(self, session_id: str) -> bool:
         """Delete all data for a capture session."""

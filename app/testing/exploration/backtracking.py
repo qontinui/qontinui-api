@@ -117,7 +117,7 @@ class BacktrackingNavigator:
         Returns:
             Set of state names with unexplored transitions
         """
-        states_with_unexplored = set()
+        states_with_unexplored: set[str] = set()
 
         if not hasattr(self.state_graph, "states"):
             return states_with_unexplored
@@ -185,7 +185,7 @@ class BacktrackingNavigator:
                     new_cost = cost + edge_cost
                     new_path = path + [next_state]
 
-                    heapq.heappush(pq, (new_cost, next_state, new_path))
+                    heapq.heappush(pq, (new_cost, next_state, new_path))  # type: ignore[arg-type, misc]
 
         # No path found
         return None
@@ -274,7 +274,7 @@ class BacktrackingNavigator:
                     new_cost = cost + edge_cost
                     new_path = path + [next_state]
 
-                    heapq.heappush(pq, (new_cost, next_state, new_path))
+                    heapq.heappush(pq, (new_cost, next_state, new_path))  # type: ignore[arg-type, misc]
 
         return None
 

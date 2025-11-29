@@ -237,28 +237,56 @@ class SnapshotSyncService:
             if history_file.exists():
                 self._sync_pattern_matches(pattern, history_file)
 
-    def _sync_pattern_matches(self, pattern: SnapshotPattern, history_file: Path):
+    def _sync_pattern_matches(
+        self,
+        pattern: SnapshotPattern,
+        history_file: Path,
+        actions: list[SnapshotAction] | None = None,
+    ):
         """Sync pattern match history to database.
+
+        Links matches to actions by timestamp correlation where possible.
 
         Args:
             pattern: The snapshot pattern instance
             history_file: Path to history.json
+            actions: Optional list of actions for timestamp correlation
         """
         with open(history_file) as f:
             history = json.load(f)
 
+        # Build timestamp-to-action lookup for linking
+        action_lookup: dict[str, SnapshotAction] = {}
+        if actions:
+            for action in actions:
+                # Use timestamp as key for correlation
+                if hasattr(action, "timestamp") and action.timestamp:
+                    action_lookup[action.timestamp.isoformat()] = action
+
         for find_record in history:
             matches = find_record.get("matches", [])
+            record_timestamp = find_record.get("timestamp")
 
-            # Get corresponding action ID from action log
-            # This requires looking up by timestamp or sequence
-            # For now, we'll store without action_id link
-            # TODO: Link matches to actions by timestamp correlation
+            # Try to find matching action by timestamp correlation
+            linked_action_id = None
+            if record_timestamp and actions:
+                # Parse the timestamp from the history record
+                try:
+                    record_dt = datetime.fromisoformat(record_timestamp.replace("Z", "+00:00"))
+                    # Find action with closest timestamp (within 1 second tolerance)
+                    for action in actions:
+                        if action.timestamp:
+                            time_diff = abs((action.timestamp - record_dt).total_seconds())
+                            if time_diff < 1.0:  # 1 second tolerance
+                                linked_action_id = action.id
+                                break
+                except (ValueError, TypeError):
+                    pass  # Invalid timestamp format, skip linking
 
             for match_idx, match_data in enumerate(matches):
                 match = SnapshotMatch(
                     pattern_id=pattern.id,
-                    action_id=None,  # TODO: Link to action
+                    action_id=linked_action_id,
                     match_index=match_idx,
                     x=match_data.get("x", 0),
                     y=match_data.get("y", 0),
@@ -340,7 +368,7 @@ class SnapshotSyncService:
 
         if tags:
             for tag in tags:
-                query = query.filter(SnapshotRun.tags.contains([tag]))
+                query = query.filter(SnapshotRun.tags.contains([tag]))  # type: ignore[attr-defined]
 
         query = query.order_by(SnapshotRun.start_time.desc())
         query = query.limit(limit).offset(offset)

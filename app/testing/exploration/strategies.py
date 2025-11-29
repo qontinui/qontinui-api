@@ -56,7 +56,7 @@ class ExplorationStrategy(ABC):
         Returns:
             List of (from_state, to_state) tuples
         """
-        transitions = []
+        transitions: list[tuple[str, str]] = []
 
         if not hasattr(self.state_graph, "states"):
             return transitions

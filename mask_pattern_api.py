@@ -266,7 +266,7 @@ async def create_pattern(request: CreatePatternRequest):
             pixel_data=image,
             mask=mask,
             tags=request.tags,
-            similarity_threshold=request.similarity_threshold,
+            similarity_threshold=request.similarity_threshold,  # type: ignore[call-arg]
             use_color=request.use_color,
         )
 
@@ -363,8 +363,8 @@ async def calculate_similarity(pattern_id: str, request: CalculateSimilarityRequ
         return CalculateSimilarityResponse(
             pattern_id=pattern_id,
             similarity=similarity,
-            match_threshold=pattern.similarity_threshold,
-            is_match=similarity >= pattern.similarity_threshold,
+            match_threshold=pattern.similarity_threshold,  # type: ignore[attr-defined]
+            is_match=similarity >= pattern.similarity_threshold,  # type: ignore[attr-defined]
         )
 
     except Exception as e:

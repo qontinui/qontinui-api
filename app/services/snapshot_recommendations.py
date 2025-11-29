@@ -65,7 +65,7 @@ class MaximumCoverageStrategy(RecommendationStrategy):
 
         # Calculate total possible states across all runs
         for run in available_runs:
-            coverage = self.analyzer.calculate_state_coverage(run.run_id)
+            coverage = self.analyzer.calculate_state_coverage(str(run.run_id))
             total_possible_states.update(coverage["unique_states"])
 
         # Greedy selection: pick run that adds most new states
@@ -74,10 +74,10 @@ class MaximumCoverageStrategy(RecommendationStrategy):
             best_new_states = 0
 
             for run in available_runs:
-                if run.run_id in selected_runs:
+                if str(run.run_id) in selected_runs:
                     continue
 
-                coverage = self.analyzer.calculate_state_coverage(run.run_id)
+                coverage = self.analyzer.calculate_state_coverage(str(run.run_id))
                 run_states = set(coverage["unique_states"])
                 new_states = len(run_states - covered_states)
 
@@ -88,8 +88,8 @@ class MaximumCoverageStrategy(RecommendationStrategy):
             if best_run is None:
                 break
 
-            selected_runs.append(best_run.run_id)
-            coverage = self.analyzer.calculate_state_coverage(best_run.run_id)
+            selected_runs.append(str(best_run.run_id))
+            coverage = self.analyzer.calculate_state_coverage(str(best_run.run_id))
             covered_states.update(coverage["unique_states"])
 
         # Calculate coverage score
@@ -125,16 +125,16 @@ class MinimumOverlapStrategy(RecommendationStrategy):
             return [], 0.0, "No snapshots available"
 
         # Start with run that has most states
-        selected_runs = []
-        coverage_scores = {}
+        selected_runs: list[str] = []
+        coverage_scores: dict[str, int] = {}
 
         for run in available_runs:
-            coverage = self.analyzer.calculate_state_coverage(run.run_id)
-            coverage_scores[run.run_id] = coverage["state_count"]
+            coverage = self.analyzer.calculate_state_coverage(str(run.run_id))
+            coverage_scores[str(run.run_id)] = coverage["state_count"]
 
         # Select first run (most states)
-        first_run = max(available_runs, key=lambda r: coverage_scores[r.run_id])
-        selected_runs.append(first_run.run_id)
+        first_run = max(available_runs, key=lambda r: coverage_scores[str(r.run_id)])
+        selected_runs.append(str(first_run.run_id))
 
         # Greedy selection: pick run with lowest similarity to selected runs
         for _ in range(max_snapshots - 1):
@@ -142,14 +142,14 @@ class MinimumOverlapStrategy(RecommendationStrategy):
             lowest_avg_similarity = float("inf")
 
             for run in available_runs:
-                if run.run_id in selected_runs:
+                if str(run.run_id) in selected_runs:
                     continue
 
                 # Calculate average similarity to selected runs
                 similarities = []
                 for selected_id in selected_runs:
                     similarity = self.analyzer.calculate_jaccard_similarity(
-                        run.run_id, selected_id, metric="states"
+                        str(run.run_id), selected_id, metric="states"
                     )
                     similarities.append(similarity)
 
@@ -162,7 +162,7 @@ class MinimumOverlapStrategy(RecommendationStrategy):
             if best_run is None:
                 break
 
-            selected_runs.append(best_run.run_id)
+            selected_runs.append(str(best_run.run_id))
 
         # Calculate diversity score (1 - avg pairwise similarity)
         if len(selected_runs) > 1:
@@ -223,9 +223,9 @@ class RecentAndDiverseStrategy(RecommendationStrategy):
             import math
 
             recency_score = math.exp(-age_days / recency_days)
-            recency_scores[run.run_id] = recency_score
+            recency_scores[str(run.run_id)] = recency_score
 
-        selected_runs = []
+        selected_runs: list[str] = []
 
         # Greedy selection with combined score
         for _ in range(max_snapshots):
@@ -233,7 +233,7 @@ class RecentAndDiverseStrategy(RecommendationStrategy):
             best_score = -1.0
 
             for run in available_runs:
-                if run.run_id in selected_runs:
+                if str(run.run_id) in selected_runs:
                     continue
 
                 # Calculate diversity component
@@ -241,7 +241,7 @@ class RecentAndDiverseStrategy(RecommendationStrategy):
                     similarities = []
                     for selected_id in selected_runs:
                         similarity = self.analyzer.calculate_jaccard_similarity(
-                            run.run_id, selected_id, metric="states"
+                            str(run.run_id), selected_id, metric="states"
                         )
                         similarities.append(similarity)
                     avg_similarity = sum(similarities) / len(similarities)
@@ -251,7 +251,8 @@ class RecentAndDiverseStrategy(RecommendationStrategy):
 
                 # Calculate combined score
                 combined_score = (
-                    recency_weight * recency_scores[run.run_id] + diversity_weight * diversity_score
+                    recency_weight * recency_scores[str(run.run_id)]
+                    + diversity_weight * diversity_score
                 )
 
                 if combined_score > best_score:
@@ -261,7 +262,7 @@ class RecentAndDiverseStrategy(RecommendationStrategy):
             if best_run is None:
                 break
 
-            selected_runs.append(best_run.run_id)
+            selected_runs.append(str(best_run.run_id))
 
         # Calculate final combined score
         if selected_runs:
@@ -324,16 +325,17 @@ class PriorityWeightedStrategy(RecommendationStrategy):
         priority_range = max_priority - min_priority if max_priority > min_priority else 1
 
         normalized_priorities = {
-            run.run_id: (run.priority - min_priority) / priority_range for run in available_runs
+            str(run.run_id): (run.priority - min_priority) / priority_range
+            for run in available_runs
         }
 
-        selected_runs = []
+        selected_runs: list[str] = []
         covered_states: set[str] = set()
 
         # Calculate total possible states
         total_possible_states: set[str] = set()
         for run in available_runs:
-            coverage = self.analyzer.calculate_state_coverage(run.run_id)
+            coverage = self.analyzer.calculate_state_coverage(str(run.run_id))
             total_possible_states.update(coverage["unique_states"])
 
         # Greedy selection with weighted score
@@ -342,11 +344,11 @@ class PriorityWeightedStrategy(RecommendationStrategy):
             best_score = -1.0
 
             for run in available_runs:
-                if run.run_id in selected_runs:
+                if str(run.run_id) in selected_runs:
                     continue
 
                 # Calculate coverage contribution
-                coverage = self.analyzer.calculate_state_coverage(run.run_id)
+                coverage = self.analyzer.calculate_state_coverage(str(run.run_id))
                 run_states = set(coverage["unique_states"])
                 new_states = len(run_states - covered_states)
                 coverage_score = (
@@ -355,19 +357,19 @@ class PriorityWeightedStrategy(RecommendationStrategy):
 
                 # Calculate weighted score
                 weighted_score = (
-                    priority_weight * normalized_priorities[run.run_id]
+                    priority_weight * normalized_priorities[str(run.run_id)]
                     + coverage_weight * coverage_score
                 )
 
                 if weighted_score > best_score:
-                    best_score = weighted_score
+                    best_score = float(weighted_score)  # type: ignore[assignment]
                     best_run = run
 
             if best_run is None:
                 break
 
-            selected_runs.append(best_run.run_id)
-            coverage = self.analyzer.calculate_state_coverage(best_run.run_id)
+            selected_runs.append(str(best_run.run_id))
+            coverage = self.analyzer.calculate_state_coverage(str(best_run.run_id))
             covered_states.update(coverage["unique_states"])
 
         # Calculate final score
@@ -524,6 +526,6 @@ class SnapshotRecommendationService:
             }
 
         # Find recommendation with highest score
-        best = max(all_recommendations["recommendations"], key=lambda r: r["score"])
+        best: dict[str, Any] = max(all_recommendations["recommendations"], key=lambda r: r["score"])
 
         return best

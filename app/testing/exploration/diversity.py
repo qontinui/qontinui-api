@@ -6,6 +6,7 @@ graph, helping discover edge cases and maximize test coverage.
 
 import logging
 import random
+from collections.abc import Sequence
 
 from app.testing.config import ExplorationConfig
 from app.testing.path_tracker import PathTracker
@@ -108,7 +109,7 @@ class PathDiversityEngine:
 
         # Storage for k-shortest paths
         A = []  # Found paths
-        B = []  # Candidate paths
+        B: list[tuple[float, list[str]]] = []  # Candidate paths
 
         # Find first shortest path
         first_path = self._dijkstra_path(start, goal)
@@ -217,7 +218,7 @@ class PathDiversityEngine:
                     new_cost = cost + edge_cost
                     new_path = path + [next_state]
 
-                    heapq.heappush(pq, (new_cost, next_state, new_path))
+                    heapq.heappush(pq, (new_cost, next_state, new_path))  # type: ignore[arg-type, misc]
 
         return None
 
@@ -348,12 +349,12 @@ class PathDiversityEngine:
                     new_cost = cost + edge_cost
                     new_path = path + [next_state]
 
-                    heapq.heappush(pq, (new_cost, next_state, new_path))
+                    heapq.heappush(pq, (new_cost, next_state, new_path))  # type: ignore[arg-type, misc]
 
         return None
 
     def _filter_diverse_paths(
-        self, paths: list[tuple[float, list[str]] | list[str]]
+        self, paths: Sequence[tuple[float, list[str]] | list[str]]
     ) -> list[list[str]]:
         """Filter paths to ensure diversity.
 
