@@ -270,19 +270,19 @@ class SnapshotDeduplicationService:
             for snap2 in snapshots[i + 1 :]:
                 # Calculate state coverage similarity
                 state_sim = self.analyzer.calculate_jaccard_similarity(
-                    snap1.run_id, snap2.run_id, metric="states"
+                    str(snap1.run_id), str(snap2.run_id), metric="states"
                 )
 
                 # Calculate action sequence similarity
                 action_sim = self.analyzer.calculate_action_sequence_similarity(
-                    snap1.run_id, snap2.run_id
+                    str(snap1.run_id), str(snap2.run_id)
                 )
 
                 # Calculate screenshot similarity (based on action count/types)
                 screenshot_sim = self._calculate_screenshot_similarity(snap1, snap2)
 
                 # Store similarities
-                key = (snap1.run_id, snap2.run_id)
+                key = (str(snap1.run_id), str(snap2.run_id))
                 similarity_matrix[key] = {
                     "state": state_sim,
                     "action": action_sim,
@@ -314,11 +314,12 @@ class SnapshotDeduplicationService:
         elif snap1.total_actions == 0 or snap2.total_actions == 0:
             action_similarity = 0.0
         else:
-            action_similarity = min(snap1.total_actions, snap2.total_actions) / max(
-                snap1.total_actions, snap2.total_actions
+            action_similarity = float(
+                min(snap1.total_actions, snap2.total_actions)
+                / max(snap1.total_actions, snap2.total_actions)
             )
 
-        return (count_similarity + action_similarity) / 2
+        return float((count_similarity + action_similarity) / 2)
 
     def _find_duplicate_groups(
         self,
@@ -352,9 +353,9 @@ class SnapshotDeduplicationService:
 
                 # Get similarity metrics
                 key = (
-                    (snap.run_id, other_snap.run_id)
-                    if (snap.run_id, other_snap.run_id) in similarity_matrix
-                    else (other_snap.run_id, snap.run_id)
+                    (str(snap.run_id), str(other_snap.run_id))
+                    if (str(snap.run_id), str(other_snap.run_id)) in similarity_matrix
+                    else (str(other_snap.run_id), str(snap.run_id))
                 )
 
                 if key not in similarity_matrix:
@@ -388,14 +389,15 @@ class SnapshotDeduplicationService:
 
             # Create group if duplicates found
             if duplicates:
-                avg_similarity = sum(d["similarity"] for d in duplicates) / len(duplicates)
-                group = DuplicateGroup(snap.run_id, avg_similarity)
+                avg_similarity = sum(float(d["similarity"]) for d in duplicates if isinstance(d.get("similarity"), int | float)) / len(duplicates)  # type: ignore[misc, arg-type]
+                group = DuplicateGroup(str(snap.run_id), avg_similarity)
 
                 for dup in duplicates:
-                    group.add_duplicate(dup["run_id"], "; ".join(dup["reasons"]))
-                    assigned.add(dup["run_id"])
+                    reasons_list = dup.get("reasons", [])
+                    group.add_duplicate(str(dup["run_id"]), "; ".join(str(r) for r in reasons_list) if hasattr(reasons_list, "__iter__") else "")  # type: ignore[attr-defined]
+                    assigned.add(str(dup["run_id"]))
 
-                assigned.add(snap.run_id)
+                assigned.add(str(snap.run_id))
                 duplicate_groups.append(group)
 
         return duplicate_groups
@@ -418,7 +420,7 @@ class SnapshotDeduplicationService:
                 # Add action log and pattern data (~1KB per action)
                 estimated_bytes += snapshot.total_actions * 1024
 
-                total_bytes += estimated_bytes
+                total_bytes += estimated_bytes  # type: ignore[assignment]
 
         # Convert to human-readable format
         if total_bytes < 1024:

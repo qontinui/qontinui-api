@@ -9,7 +9,6 @@ These endpoints support:
 
 import base64
 from datetime import datetime
-from typing import Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import Response
@@ -333,7 +332,7 @@ async def index_historical_results(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@router.post("/historical/random", response_model=Optional[HistoricalResultResponse])
+@router.post("/historical/random", response_model=HistoricalResultResponse | None)
 async def get_random_historical_result(request: RandomResultRequest, db: Session = Depends(get_db)):
     """Get a random historical result matching criteria.
 

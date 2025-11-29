@@ -115,7 +115,7 @@ class StateCoverageAnalyzer:
         if not snapshot_runs:
             raise ValueError(f"No snapshot runs found for IDs: {snapshot_run_ids}")
 
-        snapshot_ids = [run.id for run in snapshot_runs]
+        snapshot_ids = [int(run.id) for run in snapshot_runs]
 
         # Gather all states from actions
         discovered_states = self._discover_states(snapshot_ids)
@@ -193,7 +193,7 @@ class StateCoverageAnalyzer:
             .all()
         )
 
-        states = set()
+        states: set[str] = set()
         for action in actions:
             if action.active_states:
                 states.update(action.active_states)
@@ -237,13 +237,13 @@ class StateCoverageAnalyzer:
                 metric = metrics[state]
                 metric.screenshot_count += 1
                 metric.actions_performed += 1
-                metric.action_types.add(action.action_type)
+                metric.action_types.add(str(action.action_type))
 
                 if action.pattern_id:
-                    metric.patterns_tested.add(action.pattern_id)
+                    metric.patterns_tested.add(str(action.pattern_id))
 
                 if metric.last_tested is None or action.timestamp > metric.last_tested:
-                    metric.last_tested = action.timestamp
+                    metric.last_tested = action.timestamp  # type: ignore[assignment]
 
         # Calculate coverage percentage for each state
         # Coverage = (screenshot_count + actions_performed + patterns_count) / baseline
@@ -316,8 +316,8 @@ class StateCoverageAnalyzer:
 
                         transition = transitions_map[key]
                         transition.count += 1
-                        transition.last_occurrence = action.timestamp
-                        transition.actions_triggering.append(action.action_type)
+                        transition.last_occurrence = action.timestamp  # type: ignore[assignment]
+                        transition.actions_triggering.append(str(action.action_type))
 
                 # Track state removals (transitions FROM old states)
                 for from_state in removed_states:
@@ -332,8 +332,8 @@ class StateCoverageAnalyzer:
 
                         transition = transitions_map[key]
                         transition.count += 1
-                        transition.last_occurrence = action.timestamp
-                        transition.actions_triggering.append(action.action_type)
+                        transition.last_occurrence = action.timestamp  # type: ignore[assignment]
+                        transition.actions_triggering.append(str(action.action_type))
 
             previous_states = current_states
 
@@ -485,16 +485,65 @@ class StateCoverageAnalyzer:
         Returns:
             Cached report if available, None otherwise
         """
-        # TODO: Implement caching using Redis or database
+        # Generate cache key from process_id and sorted snapshot_run_ids
+        import hashlib
+        import json
+
+        cache_key_data = {
+            "process_id": process_id,
+            "snapshot_run_ids": sorted(snapshot_run_ids),
+        }
+        cache_key_str = json.dumps(cache_key_data, sort_keys=True)
+        cache_key = f"coverage:{hashlib.md5(cache_key_str.encode()).hexdigest()}"
+
+        # Try to get from in-memory cache first
+        if hasattr(self, "_cache") and cache_key in self._cache:
+            cached = self._cache[cache_key]
+            # Check if cache is still valid (less than 5 minutes old)
+            cache_time = cached.get("cached_at")
+            if cache_time:
+                age = (datetime.now() - datetime.fromisoformat(cache_time)).total_seconds()
+                if age < 300:  # 5 minutes
+                    return cached.get("report")
+
         return None
 
     def cache_report(self, report: CoverageReport) -> None:
         """Cache coverage report for future use.
 
-        Note: This is a placeholder for future caching implementation.
+        Uses in-memory cache with 5-minute TTL. For production deployment,
+        this should be extended to use Redis for distributed caching.
 
         Args:
             report: Coverage report to cache
         """
-        # TODO: Implement caching using Redis or database
-        pass
+        import hashlib
+        import json
+
+        # Initialize cache if not exists
+        if not hasattr(self, "_cache"):
+            self._cache: dict[str, dict] = {}
+
+        # Generate cache key
+        cache_key_data = {
+            "process_id": report.process_id,
+            "snapshot_run_ids": sorted(report.snapshot_run_ids),
+        }
+        cache_key_str = json.dumps(cache_key_data, sort_keys=True)
+        cache_key = f"coverage:{hashlib.md5(cache_key_str.encode()).hexdigest()}"
+
+        # Store in cache
+        self._cache[cache_key] = {
+            "report": report,
+            "cached_at": datetime.now().isoformat(),
+        }
+
+        # Clean old cache entries (keep last 100)
+        if len(self._cache) > 100:
+            # Remove oldest entries
+            sorted_keys = sorted(
+                self._cache.keys(),
+                key=lambda k: self._cache[k].get("cached_at", ""),
+            )
+            for key in sorted_keys[:-100]:
+                del self._cache[key]

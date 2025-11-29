@@ -18,7 +18,9 @@ class MockPathTracker:
         self.states_visited: set[str] = set()
         self.coverage_map: dict[str, int] = {}
 
-    def record_transition(self, from_state: str, to_state: str, metadata: dict = None) -> None:
+    def record_transition(
+        self, from_state: str, to_state: str, metadata: dict | None = None
+    ) -> None:
         """Record a state transition."""
         self.transitions.append(
             {

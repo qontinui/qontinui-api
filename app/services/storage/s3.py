@@ -144,7 +144,8 @@ class S3StorageBackend(StorageBackendInterface):
 
         async with await self._get_client() as client:
             response = await client.get_object(Bucket=self.bucket_name, Key=s3_key)
-            return await response["Body"].read()
+            body_data: bytes = await response["Body"].read()
+            return body_data
 
     async def delete_session_data(self, session_id: str) -> bool:
         """Delete all data for a capture session from S3."""
@@ -175,7 +176,7 @@ class S3StorageBackend(StorageBackendInterface):
         s3_key = self._s3_key(path)
 
         async with await self._get_client() as client:
-            url = await client.generate_presigned_url(
+            url: str = await client.generate_presigned_url(
                 "get_object",
                 Params={"Bucket": self.bucket_name, "Key": s3_key},
                 ExpiresIn=expires_in,
@@ -188,7 +189,7 @@ class S3StorageBackend(StorageBackendInterface):
         s3_key = self._s3_key(path)
 
         async with await self._get_client() as client:
-            url = await client.generate_presigned_url(
+            url: str = await client.generate_presigned_url(
                 "get_object",
                 Params={"Bucket": self.bucket_name, "Key": s3_key},
                 ExpiresIn=expires_in,

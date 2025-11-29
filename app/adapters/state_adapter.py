@@ -57,7 +57,7 @@ def convert_frontend_state_to_qontinui(frontend_state: dict[str, Any]) -> Qontin
                         base64_str = base64_str.split(",", 1)[1]
 
                     # Convert base64 to qontinui Image
-                    image = QontinuiImage.from_base64(base64_str)
+                    image = QontinuiImage.from_base64(base64_str)  # type: ignore[attr-defined]
                     qontinui_images.append(image)
                 except Exception as e:
                     # Log error but continue processing other images
@@ -73,12 +73,12 @@ def convert_frontend_state_to_qontinui(frontend_state: dict[str, Any]) -> Qontin
     # For now, we'll store them as an attribute
     if qontinui_images:
         # Depending on qontinui's State class API, this might need adjustment
-        state.images = qontinui_images
+        state.images = qontinui_images  # type: ignore[attr-defined]
 
     # Store transitions if provided
     transitions = frontend_state.get("transitions", [])
     if transitions:
-        state.transitions = transitions
+        state.transitions = transitions  # type: ignore[misc]
 
     return state
 

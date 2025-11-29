@@ -278,7 +278,7 @@ class FailureAwareExplorer:
 
         # Return most reliable option
         candidates.sort(key=lambda x: x[1], reverse=True)
-        return candidates[0][0]
+        return str(candidates[0][0])
 
     def _calculate_reliability_score(self, from_state: str, to_state: str) -> float:
         """Calculate reliability score for a transition.
@@ -347,7 +347,7 @@ class FailureAwareExplorer:
             )
 
         # Sort by total failures
-        transition_details.sort(key=lambda x: x["total_failures"], reverse=True)
+        transition_details.sort(key=lambda x: int(x["total_failures"]) if isinstance(x["total_failures"], int | float) else 0, reverse=True)  # type: ignore[arg-type, return-value]
 
         return {
             "summary": stats,

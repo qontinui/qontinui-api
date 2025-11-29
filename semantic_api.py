@@ -415,7 +415,7 @@ class RealSemanticProcessor:
             try:
                 pil_image = Image.fromarray(image_region)
                 description = self.clip_generator.generate(pil_image)
-                return description
+                return str(description)
             except Exception as e:
                 logger.warning(f"CLIP generation failed: {e}")
 
@@ -488,7 +488,7 @@ class RealSemanticProcessor:
                 if confidence < 0.3 or "element" in best_description.lower():
                     best_description = f"{best_description} ({element_type})"
 
-                return best_description
+                return str(best_description)
             except Exception as e:
                 logger.warning(f"CLIP inference failed: {e}")
 
@@ -621,7 +621,7 @@ class RealSemanticProcessor:
         # Sort by confidence
         objects.sort(key=lambda x: x.confidence, reverse=True)
 
-        filtered = []
+        filtered: list[SemanticObject] = []
         for obj in objects:
             # Check if this object significantly overlaps with any already selected
             is_duplicate = False
@@ -684,7 +684,7 @@ class RealSemanticProcessor:
 
             # Create mask for this contour
             mask = np.zeros(image.shape[:2], dtype=np.uint8)
-            cv2.drawContours(mask, [contour], -1, 255, -1)
+            cv2.drawContours(mask, [contour], -1, 255, -1)  # type: ignore[call-overload]
 
             # Crop mask to bounding box
             mask_crop = mask[y : y + h, x : x + w]
@@ -857,7 +857,7 @@ async def process_screenshot(request: SemanticProcessRequest):
         objects = [obj for obj in objects if obj.confidence >= request.options.min_confidence]
 
         # Create scene
-        scene = SemanticScene(
+        scene = SemanticScene(  # type: ignore[assignment]
             timestamp=datetime.now().isoformat(), object_count=len(objects), objects=objects
         )
 

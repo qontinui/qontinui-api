@@ -272,7 +272,7 @@ class PathExplorer:
                 f"Unknown strategy: {strategy_name}. " f"Available: {list(strategies.keys())}"
             )
 
-        return strategy_class(self.config, self.tracker)
+        return strategy_class(self.config, self.tracker)  # type: ignore[abstract]
 
     def _select_next_state(self) -> str | None:
         """Select next state using current strategy.
@@ -462,7 +462,7 @@ class PathExplorer:
 
         self.tracker.export_results(
             output_path=output_file,
-            format=self.config.export_format,
+            format=self.config.export_format,  # type: ignore[arg-type]
         )
 
         logger.info(f"Results exported to {output_file}")
@@ -514,7 +514,7 @@ class PathExplorer:
         # Group by category
         from collections import defaultdict
 
-        by_category = defaultdict(int)
+        by_category: dict[str, int] = defaultdict(int)
         for d in deficiencies:
             by_category[d.category.value] += 1
 

@@ -287,7 +287,7 @@ def get_execution_trends(
     service = SnapshotQueryService(db)
 
     # Build filters
-    filters = {}
+    filters: dict[str, Any] = {}
     if execution_mode:
         filters["execution_mode"] = execution_mode
     if workflow_id:

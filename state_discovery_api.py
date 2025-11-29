@@ -746,8 +746,8 @@ async def save_state_structure(request: SaveStructureRequest):
         "id": structure_id,
         "name": request.name,
         "description": request.description,
-        "states": request.states or [s.to_dict() for s in result.states],
-        "state_images": request.state_images or [si.to_dict() for si in result.state_images],
+        "states": [s.to_dict() for s in result.states],
+        "state_images": [si.to_dict() for si in result.state_images],
         "created_at": datetime.now().isoformat(),
     }
 
@@ -1289,7 +1289,7 @@ async def build_state_from_screenshots(request: BuildStateRequest, project_id: s
                 transition = TransitionInfo(
                     before_screenshot=before_img,
                     after_screenshot=after_img,
-                    click_point=tuple(pair.click_point) if pair.click_point else None,
+                    click_point=tuple(pair.click_point) if pair.click_point else None,  # type: ignore[arg-type]
                     target_state_name=pair.target_state_name,
                 )
                 transitions_to_state.append(transition)

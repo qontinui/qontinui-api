@@ -225,13 +225,13 @@ class FilterBuilder:
         if min_rate is not None:
             # successful_actions / total_actions >= min_rate
             # Note: Use NULLIF to avoid division by zero
-            success_rate = func.cast(SnapshotRun.successful_actions, func.Float()) / func.nullif(
+            success_rate = func.cast(SnapshotRun.successful_actions, func.Float()) / func.nullif(  # type: ignore[arg-type]
                 SnapshotRun.total_actions, 0
             )
             conditions.append(success_rate >= min_rate)
 
         if max_rate is not None:
-            success_rate = func.cast(SnapshotRun.successful_actions, func.Float()) / func.nullif(
+            success_rate = func.cast(SnapshotRun.successful_actions, func.Float()) / func.nullif(  # type: ignore[arg-type]
                 SnapshotRun.total_actions, 0
             )
             conditions.append(success_rate <= max_rate)

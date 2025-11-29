@@ -883,12 +883,13 @@ class PathTracker:
         }
 
         # Remove screenshots/variables if requested
+        execution_list: list[dict] = data["executions"]  # type: ignore[assignment]
         if not include_screenshots:
-            for execution in data["executions"]:
+            for execution in execution_list:
                 execution.pop("screenshot_path", None)
 
         if not include_variables:
-            for execution in data["executions"]:
+            for execution in execution_list:
                 execution.pop("variables_snapshot", None)
 
         with open(output_path, "w") as f:
