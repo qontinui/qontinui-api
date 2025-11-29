@@ -72,9 +72,13 @@ class ExplorationStrategy(ABC):
 
         return transitions
 
-    def reset(self) -> None:
-        """Reset strategy state (for stateful strategies)."""
-        pass
+    def reset(self) -> None:  # noqa: B027
+        """Reset strategy state for stateful strategies.
+
+        This is a no-op by default. Stateful strategies should override
+        this method to clear any accumulated state between exploration runs.
+        """
+        pass  # Intentional no-op for stateless strategies
 
 
 class RandomWalkExplorer(ExplorationStrategy):
