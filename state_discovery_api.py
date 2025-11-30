@@ -21,7 +21,6 @@ from fastapi import (
     APIRouter,
     BackgroundTasks,
     File,
-    Form,
     HTTPException,
     UploadFile,
     WebSocket,
@@ -39,17 +38,15 @@ from qontinui.discovery import (
 )
 from qontinui.discovery.deletion_manager import DeletionManager
 from qontinui.discovery.models import AnalysisConfig, DeleteOptions
-
-# Import state detection components
-from qontinui.discovery.state_detection.differential_consistency_detector import (
-    DifferentialConsistencyDetector,
-    StateRegion,
-)
 from qontinui.discovery.state_construction.state_builder import (
     StateBuilder,
     TransitionInfo,
 )
-from qontinui.discovery.state_construction.ocr_name_generator import OCRNameGenerator
+
+# Import state detection components
+from qontinui.discovery.state_detection.differential_consistency_detector import (
+    DifferentialConsistencyDetector,
+)
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -418,7 +415,9 @@ async def start_analysis(request: AnalysisRequest, background_tasks: BackgroundT
         config = AnalysisConfig(
             min_region_size=tuple(config_dict["min_region_size"]),
             max_region_size=tuple(config_dict["max_region_size"]),
-            color_tolerance=config_dict["color_tolerance"],  # Derived from similarity_threshold in UI
+            color_tolerance=config_dict[
+                "color_tolerance"
+            ],  # Derived from similarity_threshold in UI
             stability_threshold=config_dict["stability_threshold"],
             variance_threshold=config_dict["variance_threshold"],
             min_screenshots_present=config_dict["min_screenshots_present"],
@@ -747,8 +746,8 @@ async def save_state_structure(request: SaveStructureRequest):
         "id": structure_id,
         "name": request.name,
         "description": request.description,
-        "states": request.states or [s.to_dict() for s in result.states],
-        "state_images": request.state_images or [si.to_dict() for si in result.state_images],
+        "states": [s.to_dict() for s in result.states],
+        "state_images": [si.to_dict() for si in result.state_images],
         "created_at": datetime.now().isoformat(),
     }
 
@@ -1117,7 +1116,9 @@ async def analyze_transitions(request: AnalyzeTransitionsRequest, project_id: st
             for region in regions
         ]
 
-        logger.info(f"Detected {len(regions)} state regions from {len(screenshot_pairs)} transitions")
+        logger.info(
+            f"Detected {len(regions)} state regions from {len(screenshot_pairs)} transitions"
+        )
 
         return {
             "regions": region_responses,
@@ -1288,7 +1289,7 @@ async def build_state_from_screenshots(request: BuildStateRequest, project_id: s
                 transition = TransitionInfo(
                     before_screenshot=before_img,
                     after_screenshot=after_img,
-                    click_point=tuple(pair.click_point) if pair.click_point else None,
+                    click_point=tuple(pair.click_point) if pair.click_point else None,  # type: ignore[arg-type]
                     target_state_name=pair.target_state_name,
                 )
                 transitions_to_state.append(transition)

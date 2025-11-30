@@ -6,7 +6,7 @@ graph, helping discover edge cases and maximize test coverage.
 
 import logging
 import random
-from typing import Any
+from collections.abc import Sequence
 
 from app.testing.config import ExplorationConfig
 from app.testing.path_tracker import PathTracker
@@ -35,9 +35,7 @@ class PathDiversityEngine:
         self.variation_rate = config.diversity_variation_rate
         self.min_difference = config.diversity_min_difference
 
-    def generate_diverse_paths(
-        self, start_state: str, end_state: str
-    ) -> list[list[str]]:
+    def generate_diverse_paths(self, start_state: str, end_state: str) -> list[list[str]]:
         """Generate k diverse paths between two states.
 
         Args:
@@ -58,8 +56,7 @@ class PathDiversityEngine:
         diverse_paths = self._filter_diverse_paths(k_shortest)
 
         logger.info(
-            f"Generated {len(diverse_paths)} diverse paths: "
-            f"{start_state} -> {end_state}"
+            f"Generated {len(diverse_paths)} diverse paths: " f"{start_state} -> {end_state}"
         )
 
         return diverse_paths
@@ -96,9 +93,7 @@ class PathDiversityEngine:
 
         return diverse_variations
 
-    def _k_shortest_paths(
-        self, start: str, goal: str, k: int
-    ) -> list[tuple[float, list[str]]]:
+    def _k_shortest_paths(self, start: str, goal: str, k: int) -> list[tuple[float, list[str]]]:
         """Find k shortest paths using Yen's algorithm.
 
         Args:
@@ -114,7 +109,7 @@ class PathDiversityEngine:
 
         # Storage for k-shortest paths
         A = []  # Found paths
-        B = []  # Candidate paths
+        B: list[tuple[float, list[str]]] = []  # Candidate paths
 
         # Find first shortest path
         first_path = self._dijkstra_path(start, goal)
@@ -125,7 +120,7 @@ class PathDiversityEngine:
         A.append((first_cost, first_path))
 
         # Find k-1 more paths
-        for k_i in range(1, k):
+        for _k_i in range(1, k):
             if not A:
                 break
 
@@ -146,9 +141,7 @@ class PathDiversityEngine:
                             removed_edges.add((path[i], path[i + 1]))
 
                 # Find spur path
-                spur_path = self._dijkstra_path(
-                    spur_node, goal, avoid_edges=removed_edges
-                )
+                spur_path = self._dijkstra_path(spur_node, goal, avoid_edges=removed_edges)
 
                 if spur_path and len(spur_path) > 1:
                     # Combine root and spur paths
@@ -225,7 +218,7 @@ class PathDiversityEngine:
                     new_cost = cost + edge_cost
                     new_path = path + [next_state]
 
-                    heapq.heappush(pq, (new_cost, next_state, new_path))
+                    heapq.heappush(pq, (new_cost, next_state, new_path))  # type: ignore[arg-type, misc]
 
         return None
 
@@ -295,7 +288,7 @@ class PathDiversityEngine:
 
         # Find alternative path for segment
         alternative_segment = self._find_alternative_segment(
-            segment_start, segment_end, base_path[start_idx:end_idx + 1]
+            segment_start, segment_end, base_path[start_idx : end_idx + 1]
         )
 
         if alternative_segment:
@@ -356,12 +349,12 @@ class PathDiversityEngine:
                     new_cost = cost + edge_cost
                     new_path = path + [next_state]
 
-                    heapq.heappush(pq, (new_cost, next_state, new_path))
+                    heapq.heappush(pq, (new_cost, next_state, new_path))  # type: ignore[arg-type, misc]
 
         return None
 
     def _filter_diverse_paths(
-        self, paths: list[tuple[float, list[str]] | list[str]]
+        self, paths: Sequence[tuple[float, list[str]] | list[str]]
     ) -> list[list[str]]:
         """Filter paths to ensure diversity.
 
@@ -436,9 +429,7 @@ class PathDiversityEngine:
 
         return intersection / union
 
-    def get_least_explored_path(
-        self, start_state: str, end_state: str
-    ) -> list[str] | None:
+    def get_least_explored_path(self, start_state: str, end_state: str) -> list[str] | None:
         """Get path with most unexplored transitions.
 
         Args:

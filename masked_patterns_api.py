@@ -163,7 +163,7 @@ class MaskedPatternExtractor:
             weighted_sum = np.zeros_like(regions_array[0], dtype=np.float64)
             weight_sum = np.zeros_like(confidence_map, dtype=np.float64)
 
-            for _i, region in enumerate(regions):
+            for _i, region in enumerate(regions):  # type: ignore[assignment]
                 weighted_sum += region * weights
                 weight_sum += weights[:, :, 0] if len(weights.shape) == 3 else weights
 

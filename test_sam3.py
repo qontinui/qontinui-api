@@ -84,7 +84,9 @@ def test_sam3_strategy():
         payload = {
             "image": test_image,
             "strategy": strategy,
-            "text_prompt": "button" if strategy == "sam3" else None,  # Test SAM3's text prompt feature
+            "text_prompt": (
+                "button" if strategy == "sam3" else None
+            ),  # Test SAM3's text prompt feature
             "options": {"enable_ocr": True, "min_confidence": 0.5, "description_model": "clip"},
         }
 

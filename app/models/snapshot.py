@@ -18,7 +18,7 @@ from sqlalchemy.orm import relationship
 from app.core.database import Base
 
 
-class SnapshotRun(Base):
+class SnapshotRun(Base):  # type: ignore[misc,valid-type]
     """
     Snapshot run metadata table.
 
@@ -57,7 +57,7 @@ class SnapshotRun(Base):
     created_by = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
 
     # Tags and notes
-    tags = Column(ARRAY(Text), nullable=True)
+    tags: list[str] = Column(ARRAY(Text), nullable=True)  # type: ignore[assignment]
     notes = Column(Text, nullable=True)
 
     # Priority for smart selection (higher = preferred in recommendations)
@@ -87,7 +87,7 @@ class SnapshotRun(Base):
         return f"<SnapshotRun(run_id='{self.run_id}', start_time='{self.start_time}')>"
 
 
-class SnapshotAction(Base):
+class SnapshotAction(Base):  # type: ignore[misc,valid-type]
     """
     Snapshot action records table.
 
@@ -122,7 +122,7 @@ class SnapshotAction(Base):
     duration_ms = Column(Numeric(10, 3), nullable=True)
 
     # State and context
-    active_states = Column(ARRAY(Text), nullable=True)
+    active_states: list[str] = Column(ARRAY(Text), nullable=True)  # type: ignore[assignment]
     screenshot_path = Column(Text, nullable=True)
     is_start_screenshot = Column(Boolean, nullable=False, default=False, index=True)
 
@@ -148,7 +148,7 @@ class SnapshotAction(Base):
         )
 
 
-class SnapshotPattern(Base):
+class SnapshotPattern(Base):  # type: ignore[misc,valid-type]
     """
     Pattern statistics table.
 
@@ -202,7 +202,7 @@ class SnapshotPattern(Base):
         )
 
 
-class SnapshotMatch(Base):
+class SnapshotMatch(Base):  # type: ignore[misc,valid-type]
     """
     Individual match records table.
 

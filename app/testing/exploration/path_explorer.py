@@ -5,7 +5,8 @@ exploration strategies, backtracking, diversity, and failure handling.
 """
 
 import logging
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from app.testing.config import ExplorationConfig
 from app.testing.exploration.backtracking import BacktrackingNavigator
@@ -216,9 +217,7 @@ class PathExplorer:
         path = None
 
         if self.diversity_engine:
-            paths = self.diversity_engine.generate_diverse_paths(
-                self.current_state, target_state
-            )
+            paths = self.diversity_engine.generate_diverse_paths(self.current_state, target_state)
             if paths:
                 path = paths[0]  # Use first (shortest) path
 
@@ -234,9 +233,7 @@ class PathExplorer:
             from_state = path[i]
             to_state = path[i + 1]
 
-            success, _, _ = self._execute_transition(
-                from_state, to_state, executor_callback
-            )
+            success, _, _ = self._execute_transition(from_state, to_state, executor_callback)
 
             if not success:
                 logger.warning(f"Path execution failed at {from_state} -> {to_state}")
@@ -272,11 +269,10 @@ class PathExplorer:
 
         if not strategy_class:
             raise ValueError(
-                f"Unknown strategy: {strategy_name}. "
-                f"Available: {list(strategies.keys())}"
+                f"Unknown strategy: {strategy_name}. " f"Available: {list(strategies.keys())}"
             )
 
-        return strategy_class(self.config, self.tracker)
+        return strategy_class(self.config, self.tracker)  # type: ignore[abstract]
 
     def _select_next_state(self) -> str | None:
         """Select next state using current strategy.
@@ -323,9 +319,7 @@ class PathExplorer:
         while attempt <= max_attempts:
             # Check if should retry
             if attempt > 1 and self.failure_handler:
-                if not self.failure_handler.should_retry_transition(
-                    from_state, to_state, attempt
-                ):
+                if not self.failure_handler.should_retry_transition(from_state, to_state, attempt):
                     logger.info(f"Skipping retry for {from_state} -> {to_state}")
                     break
 
@@ -337,7 +331,7 @@ class PathExplorer:
                 success, duration_ms, metadata = executor_callback(from_state, to_state)
 
                 # Record in PathTracker
-                execution = self.tracker.record_transition(
+                self.tracker.record_transition(
                     from_state=from_state,
                     to_state=to_state,
                     success=success,
@@ -356,7 +350,10 @@ class PathExplorer:
                 # Update Q-learning if using adaptive strategy
                 if isinstance(self.strategy, AdaptiveExplorer):
                     new_state = to_state not in self.tracker._visited_states
-                    new_transition = (from_state, to_state) not in self.tracker._executed_transitions
+                    new_transition = (
+                        from_state,
+                        to_state,
+                    ) not in self.tracker._executed_transitions
                     self.strategy.update_q_value(success, new_state, new_transition)
 
                 # Return if successful or max attempts reached
@@ -407,9 +404,7 @@ class PathExplorer:
             coverage = metrics.transition_coverage_percent / 100.0
 
             if coverage >= self.config.coverage_target:
-                logger.info(
-                    f"Coverage target ({self.config.coverage_target * 100:.1f}%) reached"
-                )
+                logger.info(f"Coverage target ({self.config.coverage_target * 100:.1f}%) reached")
                 return False
 
         return True
@@ -420,9 +415,7 @@ class PathExplorer:
         Returns:
             True if recovery successful
         """
-        logger.warning(
-            f"Stuck at {self.current_state} for {self.stuck_count} iterations"
-        )
+        logger.warning(f"Stuck at {self.current_state} for {self.stuck_count} iterations")
 
         # Try backtracking first
         if self.backtracker:
@@ -469,7 +462,7 @@ class PathExplorer:
 
         self.tracker.export_results(
             output_path=output_file,
-            format=self.config.export_format,
+            format=self.config.export_format,  # type: ignore[arg-type]
         )
 
         logger.info(f"Results exported to {output_file}")
@@ -479,18 +472,14 @@ class PathExplorer:
             import json
 
             failure_report = self.failure_handler.export_failure_report()
-            failure_file = os.path.join(
-                self.config.export_path, "failure_report.json"
-            )
+            failure_file = os.path.join(self.config.export_path, "failure_report.json")
 
             with open(failure_file, "w") as f:
                 json.dump(failure_report, f, indent=2)
 
             logger.info(f"Failure report exported to {failure_file}")
 
-    def _generate_exploration_report(
-        self, metrics: Any
-    ) -> dict[str, Any]:
+    def _generate_exploration_report(self, metrics: Any) -> dict[str, Any]:
         """Generate comprehensive exploration report.
 
         Args:
@@ -525,7 +514,7 @@ class PathExplorer:
         # Group by category
         from collections import defaultdict
 
-        by_category = defaultdict(int)
+        by_category: dict[str, int] = defaultdict(int)
         for d in deficiencies:
             by_category[d.category.value] += 1
 
