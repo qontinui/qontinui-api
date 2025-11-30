@@ -6,6 +6,7 @@ Exposes real qontinui library operations for web-based testing
 import base64
 import io
 import json
+import logging
 import os
 import time
 import uuid
@@ -18,11 +19,12 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image as PILImage
 from pydantic import BaseModel
-from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
 from app.adapters.state_adapter import convert_multiple_states
+from app.routes.capture import router as capture_router
 from app.routes.integration_testing import router as integration_testing_router
 from app.routes.snapshot_search import router as snapshot_search_router
 
@@ -39,14 +41,15 @@ from masked_patterns_api import router as masked_patterns_router
 from qontinui.actions import FindOptions
 
 # Import Pydantic schemas from qontinui library
-from qontinui.config.schema import Action as ConfigAction, Workflow
-from qontinui.json_executor.config_parser import State as ConfigState
+from qontinui.config.schema import Action as ConfigAction
+from qontinui.config.schema import Workflow
 
 # Import actual qontinui library
 from qontinui.find import Find
+from qontinui.json_executor.config_parser import State as ConfigState
 from qontinui.model.element import Image, Pattern, Region
 from qontinui.model.search_regions import SearchRegions
-from qontinui.model.state import State, StateImage
+from qontinui.model.state import StateImage
 from qontinui.model.state.state_store import StateStore
 from qontinui.state_management.manager import QontinuiStateManager
 
@@ -57,13 +60,19 @@ from semantic_api import router as semantic_router
 # Import State Discovery API router
 from state_discovery_api import router as state_discovery_router
 
+# Logger for this module
+logger = logging.getLogger(__name__)
+
 app = FastAPI(
     title="Qontinui API",
     version="1.0.0",
 )
 
 # Initialize rate limiter
-limiter = Limiter(key_func=get_remote_address, storage_uri=f"redis://{os.getenv('REDIS_HOST', 'localhost')}:{os.getenv('REDIS_PORT', 6379)}/{os.getenv('REDIS_DB', 0)}")
+limiter = Limiter(
+    key_func=get_remote_address,
+    storage_uri=f"redis://{os.getenv('REDIS_HOST', 'localhost')}:{os.getenv('REDIS_PORT', 6379)}/{os.getenv('REDIS_DB', 0)}",
+)
 app.state.limiter = limiter
 
 
@@ -81,6 +90,7 @@ async def custom_rate_limit_handler(request: Request, exc: RateLimitExceeded):
             "retry_after": getattr(exc, "detail", "60 seconds"),
         },
     )
+
 
 # Initialize Redis client for session storage
 redis_client = redis.Redis(
@@ -102,9 +112,7 @@ def save_session(session_id: str, session: "MockSession", ttl: int = 3600):
         ttl: Time to live in seconds (default: 3600 = 1 hour)
     """
     try:
-        redis_client.setex(
-            f"mock_session:{session_id}", ttl, json.dumps(session.dict())
-        )
+        redis_client.setex(f"mock_session:{session_id}", ttl, json.dumps(session.dict()))
     except Exception as e:
         print(f"Error saving session {session_id} to Redis: {e}")
         raise
@@ -123,7 +131,7 @@ def get_session(session_id: str) -> Optional["MockSession"]:
     try:
         data = redis_client.get(f"mock_session:{session_id}")
         if data:
-            return MockSession(**json.loads(data))
+            return MockSession(**json.loads(data))  # type: ignore[arg-type]
         return None
     except Exception as e:
         print(f"Error retrieving session {session_id} from Redis: {e}")
@@ -153,7 +161,7 @@ def list_sessions() -> list[str]:
     """
     try:
         keys = redis_client.keys("mock_session:*")
-        return [key.replace("mock_session:", "") for key in keys]
+        return [key.replace("mock_session:", "") for key in keys]  # type: ignore[misc, union-attr]
     except Exception as e:
         print(f"Error listing sessions from Redis: {e}")
         return []
@@ -177,6 +185,9 @@ app.include_router(snapshot_search_router, prefix="/api")
 
 # Include Integration Testing router
 app.include_router(integration_testing_router, prefix="/api")
+
+# Include Capture router (video capture, historical data, frame extraction)
+app.include_router(capture_router, prefix="/api")
 
 
 # All user/project management endpoints are handled by qontinui-web/backend
@@ -242,6 +253,7 @@ class MockSession(BaseModel):
     execution_history: list[dict[str, Any]] = []
     initial_states: list[str] = []  # States marked as initial
     action_snapshots: list[dict[str, Any]] = []  # Pre-recorded snapshots for integration testing
+    mode: str = "hybrid"  # Execution mode: "hybrid" or "full_mock"
 
 
 class PatternOptimizationRequest(BaseModel):
@@ -330,9 +342,9 @@ async def find_image(request: Request, find_request: FindRequest):
     This is the REAL pattern matching that qontinui uses in production.
     """
     try:
+        from qontinui.find.filters import SimilarityFilter
         from qontinui.find.find_executor import FindExecutor
         from qontinui.find.matchers import TemplateMatcher
-        from qontinui.find.filters import SimilarityFilter, NMSFilter
         from static_screenshot_provider import StaticScreenshotProvider
 
         print(f"[find] Received request - similarity: {find_request.similarity}")
@@ -355,19 +367,14 @@ async def find_image(request: Request, find_request: FindRequest):
         screenshot_provider = StaticScreenshotProvider(screenshot_pil)
 
         # Configure template matcher
-        matcher = TemplateMatcher(
-            method="TM_CCOEFF_NORMED",
-            nms_overlap_threshold=0.3
-        )
+        matcher = TemplateMatcher(method="TM_CCOEFF_NORMED", nms_overlap_threshold=0.3)
 
         # Configure filters
         filters = [SimilarityFilter(min_similarity=find_request.similarity)]
 
         # Create executor
         executor = FindExecutor(
-            screenshot_provider=screenshot_provider,
-            matcher=matcher,
-            filters=filters
+            screenshot_provider=screenshot_provider, matcher=matcher, filters=filters  # type: ignore[arg-type]
         )
 
         # Set search region if provided
@@ -387,24 +394,27 @@ async def find_image(request: Request, find_request: FindRequest):
             pattern=template_pattern,
             search_region=search_region,
             similarity=find_request.similarity,
-            find_all=False
+            find_all=False,
         )
         print(f"[find] Found {len(match_list)} matches")
 
         if match_list and len(match_list) > 0:
             match = match_list[0]
-            print(f"[find] Match found! Score: {match.similarity if hasattr(match, 'similarity') else 'N/A'}")
+            print(
+                f"[find] Match found! Score: {match.similarity if hasattr(match, 'similarity') else 'N/A'}"
+            )
             response = match_to_response(match)
             print(f"[find] Response: {response}")
             return response
 
         # No match found
-        print(f"[find] No match found")
+        print("[find] No match found")
         return MatchResponse(found=False, region=None, score=0.0, center=None)
 
     except Exception as e:
         print(f"[find] Error: {str(e)}")
         import traceback
+
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e)) from e
 
@@ -417,9 +427,9 @@ async def find_all_images(request: Request, find_request: FindRequest):
     Returns all matches with their scores and regions.
     """
     try:
+        from qontinui.find.filters import NMSFilter, SimilarityFilter
         from qontinui.find.find_executor import FindExecutor
         from qontinui.find.matchers import TemplateMatcher
-        from qontinui.find.filters import SimilarityFilter, NMSFilter
         from static_screenshot_provider import StaticScreenshotProvider
 
         print(f"[find_all] Starting pattern matching with similarity={find_request.similarity}")
@@ -437,22 +447,17 @@ async def find_all_images(request: Request, find_request: FindRequest):
         screenshot_provider = StaticScreenshotProvider(screenshot_pil)
 
         # Configure template matcher
-        matcher = TemplateMatcher(
-            method="TM_CCOEFF_NORMED",
-            nms_overlap_threshold=0.3
-        )
+        matcher = TemplateMatcher(method="TM_CCOEFF_NORMED", nms_overlap_threshold=0.3)
 
         # Configure filters
         filters = [
             SimilarityFilter(min_similarity=find_request.similarity),
-            NMSFilter(iou_threshold=0.3)
+            NMSFilter(iou_threshold=0.3),
         ]
 
         # Create executor
-        executor = FindExecutor(
-            screenshot_provider=screenshot_provider,
-            matcher=matcher,
-            filters=filters
+        executor = FindExecutor(  # type: ignore[arg-type]
+            screenshot_provider=screenshot_provider, matcher=matcher, filters=filters
         )
 
         # Set search region if provided
@@ -472,7 +477,7 @@ async def find_all_images(request: Request, find_request: FindRequest):
             pattern=template_pattern,
             search_region=search_region,
             similarity=find_request.similarity,
-            find_all=True
+            find_all=True,
         )
         print(f"[find_all] Found {len(match_list)} matches")
 
@@ -1002,7 +1007,7 @@ async def register_states(states: list[dict[str, Any]]):
             try:
                 # Register with state store and manager
                 state_store.register(state)
-                state_manager.add_state(state)
+                state_manager.add_state(state)  # type: ignore[arg-type]
                 registered.append(state.name)
             except Exception as e:
                 print(f"Failed to register state {state.name}: {e}")
@@ -1149,26 +1154,26 @@ async def test_pattern_matching(request: FindRequest):
 
         try:
             # Create qontinui Image objects
-            screenshot_img = Image(name="screenshot", filepath=screenshot_path)
+            screenshot_img = Image(name="screenshot", filepath=screenshot_path)  # type: ignore[call-arg]
 
-            template_img = Image(name="template", filepath=template_path)
+            template_img = Image(name="template", filepath=template_path)  # type: ignore[call-arg]
 
             # Create pattern
-            pattern = Pattern(images=[template_img])
+            pattern = Pattern(images=[template_img])  # type: ignore[call-arg]
 
             # Configure search region if provided
             search_regions = None
             if request.search_region:
-                search_region = Region(
+                search_region = Region(  # type: ignore[call-arg]
                     x=request.search_region["x"],
                     y=request.search_region["y"],
                     w=request.search_region["width"],
                     h=request.search_region["height"],
                 )
-                search_regions = SearchRegions(regions=[search_region])
+                search_regions = SearchRegions(regions=[search_region])  # type: ignore[call-arg]
 
             # Create Find options
-            find_options = FindOptions(
+            find_options = FindOptions(  # type: ignore[call-arg]
                 similarity=request.similarity,
                 search_regions=search_regions,
                 do_find_all=request.find_all,
@@ -1176,11 +1181,11 @@ async def test_pattern_matching(request: FindRequest):
 
             # Execute find operation
             find = Find()
-            matches = find.find(pattern=pattern, scene_image=screenshot_img, options=find_options)
+            matches = find.find(pattern=pattern, scene_image=screenshot_img, options=find_options)  # type: ignore[call-arg]
 
             # Convert matches to response format with detailed info
             match_results = []
-            for i, match in enumerate(matches.matches if matches else []):
+            for i, match in enumerate(matches.matches if matches else []):  # type: ignore[attr-defined]
                 match_results.append(
                     {
                         "id": f"match-{i}",
@@ -1203,7 +1208,7 @@ async def test_pattern_matching(request: FindRequest):
             template_pil.close()
 
             return {
-                "success": matches.successful if matches else False,
+                "success": matches.successful if matches else False,  # type: ignore[attr-defined]
                 "matches": match_results,
                 "templateSize": {"width": template_width, "height": template_height},
                 "threshold": request.similarity,
@@ -1249,7 +1254,28 @@ class WorkflowExecutionResponse(BaseModel):
 
 @app.post("/workflow/execute")
 async def execute_workflow(request: WorkflowExecutionRequest):
-    """Execute a workflow in hybrid mock mode"""
+    """Execute a workflow in hybrid or full mock mode.
+
+    When mode="full_mock" (integration testing):
+    - Sets qontinui library ExecutionMode to MockMode.MOCK
+    - All actions use mock implementations that return historical data
+    - Useful for testing workflows without live GUI automation
+
+    When mode="hybrid" (default):
+    - Uses real pattern matching on provided screenshots
+    - Actions that don't require GUI interaction are mocked
+    """
+    from qontinui.config.execution_mode import (
+        ExecutionModeConfig,
+        MockMode,
+        set_execution_mode,
+    )
+
+    # Set execution mode based on request
+    if request.mode == "full_mock":
+        # Integration testing mode - use qontinui library's mock system
+        set_execution_mode(ExecutionModeConfig(mode=MockMode.MOCK))
+
     # Create a mock session for the workflow
     session_id = str(uuid.uuid4())
 
@@ -1280,6 +1306,7 @@ async def execute_workflow(request: WorkflowExecutionRequest):
         execution_history=[],
         initial_states=initial_states,
         action_snapshots=[],
+        mode=request.mode or "hybrid",
     )
 
     # Save session to Redis with 1 hour TTL
@@ -1290,9 +1317,9 @@ async def execute_workflow(request: WorkflowExecutionRequest):
 
     # Get category name
     category_name = "Uncategorized"
-    if request.workflow.category:
+    if request.workflow.category:  # type: ignore[attr-defined]
         for cat in request.categories:
-            if cat.get("id") == request.workflow.category:
+            if cat.get("id") == request.workflow.category:  # type: ignore[attr-defined]
                 category_name = cat.get("name", "Uncategorized")
                 break
 
@@ -1397,7 +1424,31 @@ async def execute_workflow_step(session_id: str, action: ConfigAction):
         "message": message,
         "duration": duration,
         "timestamp": str(uuid.uuid4()),
+        "historical_result_id": None,  # Will be populated when using historical data
     }
+
+    # If running in mock mode with historical data, try to get a historical result ID
+    if hasattr(session, "mode") and session.mode == "full_mock":
+        try:
+            from app.services.capture_service import get_capture_service
+
+            capture_service = get_capture_service()
+            # Get a random historical result for this action type/pattern
+            pattern_id = None
+            if hasattr(action.config, "image_id"):
+                pattern_id = action.config.image_id
+            elif hasattr(action.config, "object_id"):
+                pattern_id = action.config.object_id
+
+            historical = capture_service.get_random_historical_result_sync(
+                pattern_id=pattern_id,
+                action_type=action_type.upper(),
+                success_only=False,
+            )
+            if historical:
+                result["historical_result_id"] = historical.id
+        except Exception as e:
+            logger.warning(f"Failed to get historical result ID: {e}")
 
     # Add to session history
     session.execution_history.append(result)
@@ -1433,6 +1484,8 @@ async def get_workflow_status(session_id: str):
 @app.post("/workflow/complete/{session_id}")
 async def complete_workflow(session_id: str):
     """Mark a workflow execution as complete"""
+    from qontinui.config.execution_mode import reset_execution_mode
+
     session = get_session(session_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -1453,6 +1506,9 @@ async def complete_workflow(session_id: str):
     # Clean up session from Redis
     delete_session(session_id)
 
+    # Reset execution mode to environment defaults
+    reset_execution_mode()
+
     return result
 
 
@@ -1470,13 +1526,13 @@ async def optimize_pattern(request: PatternOptimizationRequest):
 
     try:
         # Extract patterns from each screenshot/region pair
-        extracted_patterns = []
+        extracted_patterns: list[dict[str, Any]] = []
         for i, (screenshot_b64, region) in enumerate(
             zip(request.screenshots, request.regions, strict=False)
         ):
             # Decode screenshot
             screenshot_bytes = base64.b64decode(screenshot_b64)
-            screenshot_img = Image.open(io.BytesIO(screenshot_bytes))
+            screenshot_img = PILImage.open(io.BytesIO(screenshot_bytes))
 
             # Extract region from screenshot
             region_img = screenshot_img.crop(
@@ -1504,15 +1560,15 @@ async def optimize_pattern(request: PatternOptimizationRequest):
                 }
             )
 
-        results["extractedPatterns"] = extracted_patterns
+        results["extractedPatterns"] = extracted_patterns  # type: ignore[assignment]
 
         # Calculate similarity matrix using real pattern matching
         num_patterns = len(extracted_patterns)
         similarity_matrix = np.zeros((num_patterns, num_patterns))
 
         for i in range(num_patterns):
-            pattern_i_data = base64.b64decode(extracted_patterns[i]["image_data"])
-            pattern_i_img = Image.open(io.BytesIO(pattern_i_data))
+            pattern_i_data = base64.b64decode(str(extracted_patterns[i]["image_data"]))  # type: ignore[arg-type]
+            pattern_i_img = PILImage.open(io.BytesIO(pattern_i_data))
 
             for j in range(num_patterns):
                 if i == j:
@@ -1520,7 +1576,7 @@ async def optimize_pattern(request: PatternOptimizationRequest):
                 else:
                     # Use qontinui Find to match pattern_i against screenshot_j
                     screenshot_j_data = base64.b64decode(request.screenshots[j])
-                    screenshot_j_img = Image.open(io.BytesIO(screenshot_j_data))
+                    screenshot_j_img = PILImage.open(io.BytesIO(screenshot_j_data))
 
                     # Convert to numpy arrays for OpenCV
                     pattern_np = cv2.cvtColor(np.array(pattern_i_img), cv2.COLOR_RGB2BGR)
@@ -1532,7 +1588,7 @@ async def optimize_pattern(request: PatternOptimizationRequest):
 
                     similarity_matrix[i][j] = max_val
 
-        results["similarityMatrix"]["scores"] = similarity_matrix.tolist()
+        results["similarityMatrix"]["scores"] = similarity_matrix.tolist()  # type: ignore[index]
 
         # Calculate statistics
         mean_similarity = np.mean(similarity_matrix[np.triu_indices(num_patterns, k=1)])
@@ -1564,7 +1620,7 @@ async def optimize_pattern(request: PatternOptimizationRequest):
                 request.negative_screenshots,
                 similarity_matrix,
             )
-            results["evaluations"].append(evaluation)
+            results["evaluations"].append(evaluation)  # type: ignore[attr-defined]
 
         return results
 
@@ -1574,15 +1630,15 @@ async def optimize_pattern(request: PatternOptimizationRequest):
 
 async def evaluate_strategy(
     strategy_type: str,
-    patterns: list[dict],
+    patterns: list[dict[str, Any]],
     positive_screenshots: list[str],
     negative_screenshots: list[str],
-    similarity_matrix: np.ndarray,
-) -> dict:
+    similarity_matrix: np.ndarray,  # type: ignore[type-arg]
+) -> dict[str, Any]:
     """Evaluate a specific pattern optimization strategy using real pattern matching"""
 
     # Initialize evaluation result
-    evaluation = {
+    evaluation: dict[str, Any] = {
         "strategy": {"type": strategy_type, "parameters": {}},
         "performance": {
             "truePositiveRate": 0.0,
@@ -1609,18 +1665,18 @@ async def evaluate_strategy(
             # Test on positive examples (should match)
             for screenshot_b64 in positive_screenshots:
                 screenshot_data = base64.b64decode(screenshot_b64)
-                screenshot_img = Image.open(io.BytesIO(screenshot_data))
+                screenshot_img = PILImage.open(io.BytesIO(screenshot_data))
                 screenshot_np = cv2.cvtColor(np.array(screenshot_img), cv2.COLOR_RGB2BGR)
 
                 best_score = 0
                 for pattern in patterns:
                     pattern_data = base64.b64decode(pattern["image_data"])
-                    pattern_img = Image.open(io.BytesIO(pattern_data))
+                    pattern_img = PILImage.open(io.BytesIO(pattern_data))
                     pattern_np = cv2.cvtColor(np.array(pattern_img), cv2.COLOR_RGB2BGR)
 
                     result = cv2.matchTemplate(screenshot_np, pattern_np, cv2.TM_CCOEFF_NORMED)
                     min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
-                    best_score = max(best_score, max_val)
+                    best_score = max(best_score, float(max_val))  # type: ignore[assignment]
 
                 confidences.append(best_score)
                 if best_score >= 0.8:
@@ -1629,18 +1685,18 @@ async def evaluate_strategy(
             # Test on negative examples (should not match)
             for screenshot_b64 in negative_screenshots:
                 screenshot_data = base64.b64decode(screenshot_b64)
-                screenshot_img = Image.open(io.BytesIO(screenshot_data))
+                screenshot_img = PILImage.open(io.BytesIO(screenshot_data))
                 screenshot_np = cv2.cvtColor(np.array(screenshot_img), cv2.COLOR_RGB2BGR)
 
                 best_score = 0
                 for pattern in patterns:
                     pattern_data = base64.b64decode(pattern["image_data"])
-                    pattern_img = Image.open(io.BytesIO(pattern_data))
+                    pattern_img = PILImage.open(io.BytesIO(pattern_data))
                     pattern_np = cv2.cvtColor(np.array(pattern_img), cv2.COLOR_RGB2BGR)
 
                     result = cv2.matchTemplate(screenshot_np, pattern_np, cv2.TM_CCOEFF_NORMED)
                     min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
-                    best_score = max(best_score, max_val)
+                    best_score = max(best_score, float(max_val))  # type: ignore[assignment]
 
                 if best_score >= 0.8:
                     false_positives += 1
@@ -1670,18 +1726,18 @@ async def evaluate_strategy(
             confidences = []
 
             pattern_data = base64.b64decode(best_pattern["image_data"])
-            pattern_img = Image.open(io.BytesIO(pattern_data))
+            pattern_img = PILImage.open(io.BytesIO(pattern_data))
             pattern_np = cv2.cvtColor(np.array(pattern_img), cv2.COLOR_RGB2BGR)
 
             for screenshot_b64 in positive_screenshots:
                 screenshot_data = base64.b64decode(screenshot_b64)
-                screenshot_img = Image.open(io.BytesIO(screenshot_data))
+                screenshot_img = PILImage.open(io.BytesIO(screenshot_data))
                 screenshot_np = cv2.cvtColor(np.array(screenshot_img), cv2.COLOR_RGB2BGR)
 
                 result = cv2.matchTemplate(screenshot_np, pattern_np, cv2.TM_CCOEFF_NORMED)
                 min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
 
-                confidences.append(max_val)
+                confidences.append(float(max_val))  # type: ignore[arg-type]
                 if max_val >= 0.8:
                     true_positives += 1
 
@@ -1753,16 +1809,16 @@ async def create_state_image(request: CreateStateImageRequest):
             PILImage.open(io.BytesIO(image_data))
 
             # Create a Pattern object
-            pattern = Pattern()
+            pattern = Pattern()  # type: ignore[call-arg]
             # In real qontinui, we would set the pattern's image here
             # For now, we'll store the metadata
-            pattern.name = f"pattern_{pattern_data['id']}"
+            pattern.name = f"pattern_{pattern_data['id']}"  # type: ignore[attr-defined]
             patterns.append(pattern)
 
         # Create StateImage
-        state_image = StateImage()
-        state_image.patterns = patterns
-        state_image.name = request.name
+        state_image = StateImage()  # type: ignore[call-arg]
+        state_image.patterns = patterns  # type: ignore[misc]
+        state_image.name = request.name  # type: ignore[attr-defined]
 
         # Return the StateImage configuration
         return {

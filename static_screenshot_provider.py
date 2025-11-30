@@ -38,9 +38,6 @@ class StaticScreenshotProvider(ScreenshotProvider):
             return self._image
 
         # Crop to the specified region
-        return self._image.crop((
-            region.x,
-            region.y,
-            region.x + region.width,
-            region.y + region.height
-        ))
+        return self._image.crop(
+            (region.x, region.y, region.x + region.width, region.y + region.height)
+        )

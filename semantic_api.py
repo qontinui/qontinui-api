@@ -30,7 +30,7 @@ except ImportError:
 
 # Import SAM3 processor
 try:
-    from qontinui.semantic.processors.sam3_processor import SAM3Processor, HAS_SAM3
+    from qontinui.semantic.processors.sam3_processor import HAS_SAM3, SAM3Processor
 
     SAM3_AVAILABLE = HAS_SAM3
 except ImportError:
@@ -415,7 +415,7 @@ class RealSemanticProcessor:
             try:
                 pil_image = Image.fromarray(image_region)
                 description = self.clip_generator.generate(pil_image)
-                return description
+                return str(description)
             except Exception as e:
                 logger.warning(f"CLIP generation failed: {e}")
 
@@ -488,7 +488,7 @@ class RealSemanticProcessor:
                 if confidence < 0.3 or "element" in best_description.lower():
                     best_description = f"{best_description} ({element_type})"
 
-                return best_description
+                return str(best_description)
             except Exception as e:
                 logger.warning(f"CLIP inference failed: {e}")
 
@@ -621,7 +621,7 @@ class RealSemanticProcessor:
         # Sort by confidence
         objects.sort(key=lambda x: x.confidence, reverse=True)
 
-        filtered = []
+        filtered: list[SemanticObject] = []
         for obj in objects:
             # Check if this object significantly overlaps with any already selected
             is_duplicate = False
@@ -684,7 +684,7 @@ class RealSemanticProcessor:
 
             # Create mask for this contour
             mask = np.zeros(image.shape[:2], dtype=np.uint8)
-            cv2.drawContours(mask, [contour], -1, 255, -1)
+            cv2.drawContours(mask, [contour], -1, 255, -1)  # type: ignore[call-overload]
 
             # Crop mask to bounding box
             mask_crop = mask[y : y + h, x : x + w]
@@ -771,19 +771,19 @@ def _convert_qontinui_scene_to_api_objects(scene, processor_instance) -> list[Se
     objects = []
     for idx, obj in enumerate(scene.objects):
         # Convert location to bounding box
-        bbox = obj.location.bbox if hasattr(obj.location, 'bbox') else None
+        bbox = obj.location.bbox if hasattr(obj.location, "bbox") else None
         if bbox:
             x, y, w, h = bbox
         else:
             # Fallback: try to get bounds from location
-            x = getattr(obj.location, 'x', 0)
-            y = getattr(obj.location, 'y', 0)
-            w = getattr(obj.location, 'width', 50)
-            h = getattr(obj.location, 'height', 50)
+            x = getattr(obj.location, "x", 0)
+            y = getattr(obj.location, "y", 0)
+            w = getattr(obj.location, "width", 50)
+            h = getattr(obj.location, "height", 50)
 
         # Encode mask if available
         pixel_mask = None
-        if hasattr(obj.location, 'mask') and obj.location.mask is not None:
+        if hasattr(obj.location, "mask") and obj.location.mask is not None:
             try:
                 pixel_mask = processor_instance.encode_mask(obj.location.mask)
             except Exception as e:
@@ -792,12 +792,14 @@ def _convert_qontinui_scene_to_api_objects(scene, processor_instance) -> list[Se
         semantic_obj = SemanticObject(
             id=f"sam3_{idx}_{x}_{y}",
             description=obj.description,
-            ocr_text=getattr(obj, 'ocr_text', None),
-            type=obj.object_type.value if hasattr(obj.object_type, 'value') else str(obj.object_type),
+            ocr_text=getattr(obj, "ocr_text", None),
+            type=(
+                obj.object_type.value if hasattr(obj.object_type, "value") else str(obj.object_type)
+            ),
             confidence=float(obj.confidence),
             bounding_box=BoundingBox(x=int(x), y=int(y), width=int(w), height=int(h)),
             pixel_mask=pixel_mask,
-            attributes=obj.attributes if hasattr(obj, 'attributes') else {}
+            attributes=obj.attributes if hasattr(obj, "attributes") else {},
         )
         objects.append(semantic_obj)
 
@@ -834,16 +836,20 @@ async def process_screenshot(request: SemanticProcessRequest):
                     logger.error(f"SAM3 model checkpoint not found: {e}")
                     raise HTTPException(
                         status_code=503,
-                        detail="SAM3 model checkpoint not found. Please ensure the model is downloaded and available."
-                    )
+                        detail="SAM3 model checkpoint not found. Please ensure the model is downloaded and available.",
+                    ) from e
                 except Exception as e:
                     logger.error(f"SAM3Processor failed: {e}, falling back to OpenCV")
                     # Fall back to OpenCV implementation
-                    objects = processor._segment_with_masks(image, request.options, text_prompt=request.text_prompt)
+                    objects = processor._segment_with_masks(
+                        image, request.options, text_prompt=request.text_prompt
+                    )
             else:
                 # SAM3 not available, fall back to OpenCV
                 logger.warning("SAM3 not available, using OpenCV fallback")
-                objects = processor._segment_with_masks(image, request.options, text_prompt=request.text_prompt)
+                objects = processor._segment_with_masks(
+                    image, request.options, text_prompt=request.text_prompt
+                )
         else:
             objects = processor.detect_ui_elements(image, request.options, request.strategy)
 
@@ -851,7 +857,7 @@ async def process_screenshot(request: SemanticProcessRequest):
         objects = [obj for obj in objects if obj.confidence >= request.options.min_confidence]
 
         # Create scene
-        scene = SemanticScene(
+        scene = SemanticScene(  # type: ignore[assignment]
             timestamp=datetime.now().isoformat(), object_count=len(objects), objects=objects
         )
 
@@ -948,5 +954,5 @@ async def health_check():
         "sam3_available": SAM3_AVAILABLE,
         "sam3_processor_initialized": sam3_processor is not None,
         "qontinui_available": QONTINUI_AVAILABLE,
-        "clip_available": CLIP_AVAILABLE
+        "clip_available": CLIP_AVAILABLE,
     }

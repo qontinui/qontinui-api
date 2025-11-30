@@ -8,9 +8,8 @@ focuses on statistics and execution history retrieval.
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
-
 from auth_simple import User, get_current_user, load_users
+from fastapi import APIRouter, Depends, HTTPException
 
 router = APIRouter(tags=["scheduler"])
 

@@ -5,7 +5,6 @@ to navigate back to states with unexplored transitions.
 """
 
 import logging
-from typing import Any
 
 from app.testing.config import ExplorationConfig
 from app.testing.path_tracker import PathTracker
@@ -58,8 +57,7 @@ class BacktrackingNavigator:
 
         if path:
             logger.info(
-                f"Backtrack path found: {current_state} -> {target_state} "
-                f"({len(path)} steps)"
+                f"Backtrack path found: {current_state} -> {target_state} " f"({len(path)} steps)"
             )
         else:
             logger.warning(f"No backtrack path found from {current_state} to {target_state}")
@@ -119,7 +117,7 @@ class BacktrackingNavigator:
         Returns:
             Set of state names with unexplored transitions
         """
-        states_with_unexplored = set()
+        states_with_unexplored: set[str] = set()
 
         if not hasattr(self.state_graph, "states"):
             return states_with_unexplored
@@ -187,7 +185,7 @@ class BacktrackingNavigator:
                     new_cost = cost + edge_cost
                     new_path = path + [next_state]
 
-                    heapq.heappush(pq, (new_cost, next_state, new_path))
+                    heapq.heappush(pq, (new_cost, next_state, new_path))  # type: ignore[arg-type, misc]
 
         # No path found
         return None
@@ -276,7 +274,7 @@ class BacktrackingNavigator:
                     new_cost = cost + edge_cost
                     new_path = path + [next_state]
 
-                    heapq.heappush(pq, (new_cost, next_state, new_path))
+                    heapq.heappush(pq, (new_cost, next_state, new_path))  # type: ignore[arg-type, misc]
 
         return None
 

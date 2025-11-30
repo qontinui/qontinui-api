@@ -62,7 +62,7 @@ class SnapshotQueryService:
                     SnapshotRun.execution_mode.ilike(search_pattern),
                     SnapshotRun.notes.ilike(search_pattern),
                     # JSONB text search
-                    func.cast(SnapshotRun.metadata_json, func.Text()).ilike(search_pattern),
+                    func.cast(SnapshotRun.metadata_json, func.Text()).ilike(search_pattern),  # type: ignore[arg-type]
                 )
             )
 
@@ -100,16 +100,16 @@ class SnapshotQueryService:
             return None
 
         # Get action breakdown
-        action_breakdown = self._get_action_breakdown(snapshot.id)
+        action_breakdown = self._get_action_breakdown(int(snapshot.id))
 
         # Get pattern usage
-        pattern_usage = self._get_pattern_usage(snapshot.id)
+        pattern_usage = self._get_pattern_usage(int(snapshot.id))
 
         # Get timeline
-        timeline = self._get_action_timeline(snapshot.id)
+        timeline = self._get_action_timeline(int(snapshot.id))
 
         # Get performance metrics
-        performance = self._get_performance_metrics(snapshot.id)
+        performance = self._get_performance_metrics(int(snapshot.id))
 
         return {
             "run_id": run_id,
@@ -411,7 +411,7 @@ class SnapshotQueryService:
                     case((SnapshotRun.successful_actions == SnapshotRun.total_actions, 1), else_=0)
                 ).label("successful_runs"),
                 func.avg(
-                    func.cast(SnapshotRun.successful_actions, func.Float())
+                    func.cast(SnapshotRun.successful_actions, func.Float())  # type: ignore[arg-type]
                     / func.nullif(SnapshotRun.total_actions, 0)
                 ).label("avg_success_rate"),
             )
@@ -465,7 +465,7 @@ class SnapshotQueryService:
         self, start_date: datetime, filters: dict[str, Any] | None
     ) -> list[dict[str, Any]]:
         """Get most commonly failing patterns."""
-        query = (
+        query: Any = (
             self.db.query(
                 SnapshotPattern.pattern_id,
                 SnapshotPattern.pattern_name,
@@ -504,7 +504,7 @@ class SnapshotQueryService:
         self, start_date: datetime, filters: dict[str, Any] | None
     ) -> list[dict[str, Any]]:
         """Get most used patterns in period."""
-        query = (
+        query: Any = (
             self.db.query(
                 SnapshotPattern.pattern_id,
                 SnapshotPattern.pattern_name,

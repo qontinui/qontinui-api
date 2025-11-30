@@ -1,11 +1,8 @@
 """Data models for PathTracker."""
 
-import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
-
-import numpy as np
 
 from app.testing.enums import DeficiencyCategory, DeficiencySeverity, ExecutionStatus
 
@@ -221,10 +218,7 @@ class CoverageMetrics:
         Returns:
             True if 100% state and transition coverage
         """
-        return (
-            self.state_coverage_percent == 100.0
-            and self.transition_coverage_percent == 100.0
-        )
+        return self.state_coverage_percent == 100.0 and self.transition_coverage_percent == 100.0
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization.

@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 def example_basic_exploration():
     """Example: Basic exploration with default configuration."""
+
     # Assume we have a state graph (mock for example)
     class MockStateGraph:
         def __init__(self):
@@ -99,7 +100,7 @@ def example_greedy_strategy():
     # Mock state graph (same as above)
     # ... (omitted for brevity)
 
-    config = ExplorationConfig(
+    ExplorationConfig(
         strategy="greedy",
         max_iterations=50,
         greedy_unexplored_bonus=3.0,
@@ -111,7 +112,7 @@ def example_greedy_strategy():
 
 def example_adaptive_strategy():
     """Example: Using Q-learning adaptive strategy."""
-    config = ExplorationConfig(
+    ExplorationConfig(
         strategy="adaptive",
         max_iterations=200,
         adaptive_learning_rate=0.1,
@@ -163,7 +164,7 @@ def example_path_exploration():
 
 def example_failure_handling():
     """Example: Exploration with failure handling."""
-    config = ExplorationConfig(
+    ExplorationConfig(
         strategy="greedy",
         max_iterations=100,
         enable_failure_handling=True,
@@ -210,7 +211,7 @@ def example_coverage_callbacks():
 
 def example_exporting_results():
     """Example: Exporting exploration results."""
-    config = ExplorationConfig(
+    ExplorationConfig(
         export_on_completion=True,
         export_format="json",  # or "html", "csv", "markdown"
         export_path="./exploration_results",
@@ -228,7 +229,7 @@ def example_exporting_results():
 
 def example_backtracking():
     """Example: Using backtracking to reach unexplored states."""
-    config = ExplorationConfig(
+    ExplorationConfig(
         strategy="greedy",
         enable_backtracking=True,
         backtracking_max_attempts=3,
@@ -241,7 +242,7 @@ def example_backtracking():
 
 def example_diverse_paths():
     """Example: Generating diverse paths."""
-    config = ExplorationConfig(
+    ExplorationConfig(
         enable_diversity=True,
         diversity_k_paths=5,
         diversity_variation_rate=0.3,

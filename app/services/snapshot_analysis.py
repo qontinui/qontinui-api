@@ -101,7 +101,7 @@ class SnapshotAnalysisService:
         type_successes: dict[str, int] = defaultdict(int)
 
         for action in actions:
-            action_type = action.action_type
+            action_type = str(action.action_type)
             type_counts[action_type] += 1
             if action.success:
                 type_successes[action_type] += 1
@@ -247,7 +247,7 @@ class SnapshotAnalysisService:
             all_patterns.update(self._get_pattern_ids(run_id))
 
         # Calculate pairwise similarities
-        overlap_matrix = {}
+        overlap_matrix: dict[str, dict[str, Any]] = {}
         similarities = []
 
         for i, run_id1 in enumerate(run_ids):

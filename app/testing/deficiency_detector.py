@@ -132,10 +132,7 @@ class DeficiencyDetector:
                 )
 
         # Check for consistently slow transitions
-        if (
-            stats.total_attempts >= 3
-            and stats.avg_duration_ms > self.performance_threshold_ms
-        ):
+        if stats.total_attempts >= 3 and stats.avg_duration_ms > self.performance_threshold_ms:
             deficiencies.append(
                 (
                     DeficiencyCategory.SLOW_TRANSITION,
@@ -170,7 +167,9 @@ class DeficiencyDetector:
         if hasattr(state_graph, "get_reachable_states"):
             try:
                 reachable = state_graph.get_reachable_states()
-                all_states = set(state_graph.states.keys()) if hasattr(state_graph, "states") else set()
+                all_states = (
+                    set(state_graph.states.keys()) if hasattr(state_graph, "states") else set()
+                )
 
                 for state_name in all_states:
                     if state_name not in reachable and state_name not in visited_states:
