@@ -347,7 +347,12 @@ class FailureAwareExplorer:
             )
 
         # Sort by total failures
-        transition_details.sort(key=lambda x: int(x["total_failures"]) if isinstance(x["total_failures"], int | float) else 0, reverse=True)  # type: ignore[arg-type, return-value]
+        transition_details.sort(
+            key=lambda x: (
+                int(x["total_failures"]) if isinstance(x["total_failures"], int | float) else 0
+            ),
+            reverse=True,
+        )  # type: ignore[arg-type, return-value]
 
         return {
             "summary": stats,
