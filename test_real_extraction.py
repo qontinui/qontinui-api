@@ -2,6 +2,7 @@
 """
 Test pattern extraction with real screenshots
 """
+
 import base64
 
 import requests

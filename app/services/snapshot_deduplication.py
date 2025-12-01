@@ -389,12 +389,25 @@ class SnapshotDeduplicationService:
 
             # Create group if duplicates found
             if duplicates:
-                avg_similarity = sum(float(d["similarity"]) for d in duplicates if isinstance(d.get("similarity"), int | float)) / len(duplicates)  # type: ignore[misc, arg-type]
+                avg_similarity = sum(
+                    float(d["similarity"])
+                    for d in duplicates
+                    if isinstance(d.get("similarity"), int | float)
+                ) / len(
+                    duplicates
+                )  # type: ignore[misc, arg-type]
                 group = DuplicateGroup(str(snap.run_id), avg_similarity)
 
                 for dup in duplicates:
                     reasons_list = dup.get("reasons", [])
-                    group.add_duplicate(str(dup["run_id"]), "; ".join(str(r) for r in reasons_list) if hasattr(reasons_list, "__iter__") else "")  # type: ignore[attr-defined]
+                    group.add_duplicate(
+                        str(dup["run_id"]),
+                        (
+                            "; ".join(str(r) for r in reasons_list)
+                            if hasattr(reasons_list, "__iter__")
+                            else ""
+                        ),
+                    )  # type: ignore[attr-defined]
                     assigned.add(str(dup["run_id"]))
 
                 assigned.add(str(snap.run_id))

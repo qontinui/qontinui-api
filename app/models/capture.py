@@ -92,7 +92,9 @@ class CaptureSession(Base):
     total_frames = Column(Integer, nullable=True)
 
     # Storage information
-    storage_backend: Column[StorageBackend] = Column(Enum(StorageBackend), nullable=False, default=StorageBackend.LOCAL)  # type: ignore[assignment]
+    storage_backend: Column[StorageBackend] = Column(
+        Enum(StorageBackend), nullable=False, default=StorageBackend.LOCAL
+    )  # type: ignore[assignment]
     video_path = Column(Text, nullable=False)  # Local path or S3 key
     video_size_bytes = Column(BigInteger, nullable=True)
 
@@ -307,7 +309,9 @@ class ActionFrame(Base):
 
     # Cached frame path (if extracted and cached)
     cached_frame_path = Column(Text, nullable=True)
-    cache_storage_backend: Column[StorageBackend | None] = Column(Enum(StorageBackend), nullable=True)  # type: ignore[assignment]
+    cache_storage_backend: Column[StorageBackend | None] = Column(
+        Enum(StorageBackend), nullable=True
+    )  # type: ignore[assignment]
 
     # Relationship
     capture_session = relationship("CaptureSession", back_populates="action_frames")

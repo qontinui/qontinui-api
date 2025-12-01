@@ -374,7 +374,9 @@ async def find_image(request: Request, find_request: FindRequest):
 
         # Create executor
         executor = FindExecutor(
-            screenshot_provider=screenshot_provider, matcher=matcher, filters=filters  # type: ignore[arg-type]
+            screenshot_provider=screenshot_provider,
+            matcher=matcher,
+            filters=filters,  # type: ignore[arg-type]
         )
 
         # Set search region if provided
@@ -746,7 +748,9 @@ async def detect_current_states(session_id: str, similarity: float = 0.8):
 
     # Detect states using real qontinui
     detection_request = StateDetectionRequest(
-        screenshot=current_screenshot, states=session.states, similarity=similarity  # type: ignore
+        screenshot=current_screenshot,
+        states=session.states,
+        similarity=similarity,  # type: ignore
     )
 
     detection_result = await detect_states(detection_request)
@@ -1798,7 +1802,6 @@ async def evaluate_strategy(
 async def create_state_image(request: CreateStateImageRequest):
     """Create a StateImage from pattern optimization results"""
     try:
-
         # Create Pattern objects from the optimization results
         patterns = []
         for pattern_data in request.patterns:
