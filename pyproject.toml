@@ -42,6 +42,8 @@ easyocr = "^1.7.0"
 redis = "^7.1.0"
 slowapi = "^0.1.9"
 qontinui = {path = "../qontinui", develop = true}
+aiofiles = "^25.1.0"
+aioboto3 = "^15.5.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0"

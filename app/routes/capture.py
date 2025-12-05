@@ -5,9 +5,11 @@ These endpoints support:
 - Input event recording and retrieval
 - Historical data querying for integration testing
 - Frame extraction for visual playback
+- Live screenshot capture from connected monitors
 """
 
 import base64
+import io
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
@@ -493,3 +495,248 @@ async def get_frame_at_timestamp(
         return Response(content=frame_data, media_type="image/jpeg")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+# =============================================================================
+# Live Screenshot Capture Endpoints
+# =============================================================================
+
+
+class MonitorInfo(BaseModel):
+    """Information about a display monitor."""
+
+    index: int = Field(..., description="Monitor index (0-based)")
+    x: int = Field(..., description="X position of monitor")
+    y: int = Field(..., description="Y position of monitor")
+    width: int = Field(..., description="Width in physical pixels")
+    height: int = Field(..., description="Height in physical pixels")
+    scale: float = Field(1.0, description="DPI scale factor")
+    is_primary: bool = Field(False, description="Whether this is the primary monitor")
+    name: str | None = Field(None, description="Monitor name")
+
+
+class MonitorListResponse(BaseModel):
+    """Response containing list of available monitors."""
+
+    monitors: list[MonitorInfo]
+    count: int
+
+
+class ScreenshotResponse(BaseModel):
+    """Response for screenshot capture with base64 data."""
+
+    screenshot_base64: str = Field(..., description="Base64 encoded PNG image")
+    width: int = Field(..., description="Image width in pixels")
+    height: int = Field(..., description="Image height in pixels")
+    monitor: int | None = Field(None, description="Monitor index that was captured")
+    timestamp: datetime = Field(..., description="Capture timestamp")
+    format: str = Field("png", description="Image format")
+
+
+@router.get("/screenshot/monitors", response_model=MonitorListResponse)
+async def get_available_monitors():
+    """Get list of available monitors for screenshot capture.
+
+    Returns information about all connected monitors including their
+    position, size (in physical pixels), and DPI scale factor.
+
+    This endpoint uses the qontinui library's HAL layer which captures
+    at physical resolution (not logical/scaled resolution).
+    """
+    try:
+        from qontinui.hal.factory import HALFactory
+
+        screen_capture = HALFactory.get_screen_capture()
+        monitors = screen_capture.get_monitors()
+
+        monitor_list = [
+            MonitorInfo(
+                index=m.index,
+                x=m.x,
+                y=m.y,
+                width=m.width,
+                height=m.height,
+                scale=m.scale,
+                is_primary=m.is_primary,
+                name=m.name,
+            )
+            for m in monitors
+        ]
+
+        return MonitorListResponse(monitors=monitor_list, count=len(monitor_list))
+
+    except ImportError as e:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Screen capture not available: qontinui library not installed: {e}",
+        ) from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get monitors: {str(e)}") from e
+
+
+@router.get("/screenshot/current", response_model=ScreenshotResponse)
+async def capture_current_screenshot(
+    monitor: int | None = Query(None, description="Monitor index (None for all monitors)"),
+    quality: int = Query(95, ge=1, le=100, description="PNG compression level (1-100)"),
+):
+    """Capture a screenshot from the current display.
+
+    This endpoint captures at **physical pixel resolution**, matching the
+    qontinui library's capture behavior. On a 4K monitor with 150% DPI scaling,
+    this returns 3840x2160 pixels (not 2560x1440 logical pixels).
+
+    Args:
+        monitor: Monitor index (0-based). None captures all monitors combined.
+        quality: PNG compression quality (1-100, higher = better quality, larger file)
+
+    Returns:
+        Base64-encoded PNG screenshot with metadata.
+    """
+    try:
+        from qontinui.hal.factory import HALFactory
+
+        screen_capture = HALFactory.get_screen_capture()
+
+        # Capture the screenshot
+        pil_image = screen_capture.capture_screen(monitor=monitor)
+
+        # Convert to PNG bytes
+        buffer = io.BytesIO()
+        # PNG compression: 0 = no compression, 9 = max compression
+        # Map quality 1-100 to compress_level 9-0
+        compress_level = max(0, min(9, 9 - (quality - 1) // 11))
+        pil_image.save(buffer, format="PNG", compress_level=compress_level)
+        buffer.seek(0)
+
+        # Encode as base64
+        screenshot_base64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
+
+        return ScreenshotResponse(
+            screenshot_base64=screenshot_base64,
+            width=pil_image.width,
+            height=pil_image.height,
+            monitor=monitor,
+            timestamp=datetime.now(),
+            format="png",
+        )
+
+    except ImportError as e:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Screen capture not available: qontinui library not installed: {e}",
+        ) from e
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to capture screenshot: {str(e)}"
+        ) from e
+
+
+@router.get("/screenshot/current/raw")
+async def capture_current_screenshot_raw(
+    monitor: int | None = Query(None, description="Monitor index (None for all monitors)"),
+    quality: int = Query(95, ge=1, le=100, description="PNG compression level (1-100)"),
+):
+    """Capture a screenshot and return as raw PNG image.
+
+    Same as /screenshot/current but returns the image directly as binary PNG
+    instead of base64-encoded JSON. More efficient for direct image display.
+
+    Args:
+        monitor: Monitor index (0-based). None captures all monitors combined.
+        quality: PNG compression quality (1-100)
+
+    Returns:
+        Raw PNG image data with image/png content type.
+    """
+    try:
+        from qontinui.hal.factory import HALFactory
+
+        screen_capture = HALFactory.get_screen_capture()
+
+        # Capture the screenshot
+        pil_image = screen_capture.capture_screen(monitor=monitor)
+
+        # Convert to PNG bytes
+        buffer = io.BytesIO()
+        compress_level = max(0, min(9, 9 - (quality - 1) // 11))
+        pil_image.save(buffer, format="PNG", compress_level=compress_level)
+        buffer.seek(0)
+
+        return Response(
+            content=buffer.getvalue(),
+            media_type="image/png",
+            headers={
+                "X-Screenshot-Width": str(pil_image.width),
+                "X-Screenshot-Height": str(pil_image.height),
+                "X-Screenshot-Monitor": str(monitor) if monitor is not None else "all",
+            },
+        )
+
+    except ImportError as e:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Screen capture not available: qontinui library not installed: {e}",
+        ) from e
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to capture screenshot: {str(e)}"
+        ) from e
+
+
+@router.get("/screenshot/region")
+async def capture_screenshot_region(
+    x: int = Query(..., description="X coordinate of top-left corner"),
+    y: int = Query(..., description="Y coordinate of top-left corner"),
+    width: int = Query(..., gt=0, description="Region width in pixels"),
+    height: int = Query(..., gt=0, description="Region height in pixels"),
+    monitor: int | None = Query(None, description="Monitor index for relative coordinates"),
+    quality: int = Query(95, ge=1, le=100, description="PNG compression level"),
+):
+    """Capture a specific region of the screen.
+
+    Coordinates are in physical pixels. If monitor is specified, coordinates
+    are relative to that monitor's top-left corner.
+
+    Args:
+        x: X coordinate of top-left corner
+        y: Y coordinate of top-left corner
+        width: Region width in pixels
+        height: Region height in pixels
+        monitor: Optional monitor index for relative coordinates
+        quality: PNG compression quality (1-100)
+
+    Returns:
+        Raw PNG image data of the captured region.
+    """
+    try:
+        from qontinui.hal.factory import HALFactory
+
+        screen_capture = HALFactory.get_screen_capture()
+
+        # Capture the region
+        pil_image = screen_capture.capture_region(x, y, width, height, monitor=monitor)
+
+        # Convert to PNG bytes
+        buffer = io.BytesIO()
+        compress_level = max(0, min(9, 9 - (quality - 1) // 11))
+        pil_image.save(buffer, format="PNG", compress_level=compress_level)
+        buffer.seek(0)
+
+        return Response(
+            content=buffer.getvalue(),
+            media_type="image/png",
+            headers={
+                "X-Screenshot-Width": str(pil_image.width),
+                "X-Screenshot-Height": str(pil_image.height),
+                "X-Region-X": str(x),
+                "X-Region-Y": str(y),
+            },
+        )
+
+    except ImportError as e:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Screen capture not available: qontinui library not installed: {e}",
+        ) from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to capture region: {str(e)}") from e
