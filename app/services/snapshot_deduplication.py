@@ -395,7 +395,11 @@ class SnapshotDeduplicationService:
                     sim = d.get("similarity")
                     if isinstance(sim, (int, float)):
                         numeric_similarities.append(float(sim))
-                avg_similarity = sum(numeric_similarities) / len(numeric_similarities) if numeric_similarities else 0.0
+                avg_similarity = (
+                    sum(numeric_similarities) / len(numeric_similarities)
+                    if numeric_similarities
+                    else 0.0
+                )
                 group = DuplicateGroup(str(snap.run_id), avg_similarity)
 
                 for dup in duplicates:
