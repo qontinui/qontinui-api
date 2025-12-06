@@ -9,13 +9,13 @@ from app.testing.exploration.diversity import PathDiversityEngine
 from app.testing.exploration.failure_handler import FailureAwareExplorer
 from app.testing.exploration.path_explorer import PathExplorer
 from app.testing.exploration.strategies import (
-    AdaptiveExplorer,
-    BreadthFirstExplorer,
-    DepthFirstExplorer,
-    ExplorationStrategy,
-    GreedyCoverageExplorer,
-    HybridExplorer,
-    RandomWalkExplorer,
+                                                AdaptiveExplorer,
+                                                BreadthFirstExplorer,
+                                                DepthFirstExplorer,
+                                                ExplorationStrategy,
+                                                GreedyCoverageExplorer,
+                                                HybridExplorer,
+                                                RandomWalkExplorer,
 )
 
 __all__ = [

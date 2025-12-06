@@ -6,11 +6,7 @@ from typing import Any
 from sqlalchemy import case, func
 from sqlalchemy.orm import Session
 
-from app.models.snapshot import (
-    SnapshotAction,
-    SnapshotPattern,
-    SnapshotRun,
-)
+from app.models.snapshot import SnapshotAction, SnapshotPattern, SnapshotRun
 from app.services.filter_builder import FilterBuilder
 
 
