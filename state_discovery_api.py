@@ -32,16 +32,10 @@ from pydantic import BaseModel
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from qontinui.discovery import (
-    AnalysisResult,
-    PixelStabilityMatrixAnalyzer,
-)
+from qontinui.discovery import AnalysisResult, PixelStabilityMatrixAnalyzer
 from qontinui.discovery.deletion_manager import DeletionManager
 from qontinui.discovery.models import AnalysisConfig, DeleteOptions
-from qontinui.discovery.state_construction.state_builder import (
-    StateBuilder,
-    TransitionInfo,
-)
+from qontinui.discovery.state_construction.state_builder import StateBuilder, TransitionInfo
 
 # Import state detection components
 from qontinui.discovery.state_detection.differential_consistency_detector import (

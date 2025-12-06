@@ -7,11 +7,11 @@ including coverage metrics, deficiency detection, and performance analysis.
 from app.testing.deficiency_detector import DeficiencyDetector
 from app.testing.enums import DeficiencyCategory, DeficiencySeverity, ExecutionStatus
 from app.testing.models import (
-    CoverageMetrics,
-    Deficiency,
-    PathHistory,
-    TransitionExecution,
-    TransitionStatistics,
+                               CoverageMetrics,
+                               Deficiency,
+                               PathHistory,
+                               TransitionExecution,
+                               TransitionStatistics,
 )
 from app.testing.path_tracker import PathTracker
 

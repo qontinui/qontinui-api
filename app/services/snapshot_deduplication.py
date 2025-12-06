@@ -393,7 +393,7 @@ class SnapshotDeduplicationService:
                 numeric_similarities: list[float] = []
                 for d in duplicates:
                     sim = d.get("similarity")
-                    if isinstance(sim, (int, float)):
+                    if isinstance(sim, int | float):
                         numeric_similarities.append(float(sim))
                 avg_similarity = (
                     sum(numeric_similarities) / len(numeric_similarities)

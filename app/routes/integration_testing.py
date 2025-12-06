@@ -10,9 +10,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.services.state_coverage import (
-    StateCoverageAnalyzer,
-)
+from app.services.state_coverage import StateCoverageAnalyzer
 
 router = APIRouter(prefix="/integration-testing", tags=["integration-testing"])
 

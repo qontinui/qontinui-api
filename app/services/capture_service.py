@@ -23,11 +23,7 @@ from app.models.capture import (
     StorageBackend,
 )
 from app.models.snapshot import SnapshotAction, SnapshotRun
-from app.services.storage import (
-    FrameExtractor,
-    StorageBackendInterface,
-    get_default_storage,
-)
+from app.services.storage import FrameExtractor, StorageBackendInterface, get_default_storage
 
 
 class CaptureService:
