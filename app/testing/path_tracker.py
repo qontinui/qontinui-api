@@ -15,14 +15,10 @@ import cv2
 import numpy as np
 
 from app.testing.deficiency_detector import DeficiencyDetector
-from app.testing.enums import DeficiencyCategory, DeficiencySeverity, ExecutionStatus
-from app.testing.models import (
-    CoverageMetrics,
-    Deficiency,
-    PathHistory,
-    TransitionExecution,
-    TransitionStatistics,
-)
+from app.testing.enums import (DeficiencyCategory, DeficiencySeverity,
+                               ExecutionStatus)
+from app.testing.models import (CoverageMetrics, Deficiency, PathHistory,
+                                TransitionExecution, TransitionStatistics)
 
 logger = logging.getLogger(__name__)
 

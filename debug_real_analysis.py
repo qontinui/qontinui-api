@@ -13,7 +13,6 @@ import traceback
 import cv2
 import numpy as np
 import psutil
-
 from qontinui.discovery import PixelStabilityAnalyzer
 from qontinui.discovery.models import AnalysisConfig
 

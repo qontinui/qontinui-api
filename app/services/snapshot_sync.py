@@ -7,13 +7,12 @@ from pathlib import Path
 
 from sqlalchemy.orm import Session
 
-from app.models.config_schemas import (
-    ValidationError,
-    validate_action_log_item,
-    validate_pattern_metadata,
-    validate_snapshot_metadata,
-)
-from app.models.snapshot import SnapshotAction, SnapshotMatch, SnapshotPattern, SnapshotRun
+from app.models.config_schemas import (ValidationError,
+                                       validate_action_log_item,
+                                       validate_pattern_metadata,
+                                       validate_snapshot_metadata)
+from app.models.snapshot import (SnapshotAction, SnapshotMatch,
+                                 SnapshotPattern, SnapshotRun)
 
 logger = logging.getLogger(__name__)
 

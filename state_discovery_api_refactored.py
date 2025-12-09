@@ -9,7 +9,6 @@ import io
 import json
 import logging
 import os
-
 # Import State Discovery components from qontinui
 import sys
 import uuid
@@ -18,21 +17,13 @@ from datetime import datetime
 from typing import Any
 
 import numpy as np
-from fastapi import (
-    APIRouter,
-    BackgroundTasks,
-    File,
-    HTTPException,
-    UploadFile,
-    WebSocket,
-    WebSocketDisconnect,
-)
+from fastapi import (APIRouter, BackgroundTasks, File, HTTPException,
+                     UploadFile, WebSocket, WebSocketDisconnect)
 from PIL import Image as PILImage
 from pydantic import BaseModel
 
 from .state_discovery.analysis_handler import task_runner
 from .state_discovery.upload_storage import storage
-
 # Import our refactored modules
 from .state_discovery.websocket_manager import manager
 

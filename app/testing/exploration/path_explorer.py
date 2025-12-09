@@ -12,15 +12,13 @@ from app.testing.config import ExplorationConfig
 from app.testing.exploration.backtracking import BacktrackingNavigator
 from app.testing.exploration.diversity import PathDiversityEngine
 from app.testing.exploration.failure_handler import FailureAwareExplorer
-from app.testing.exploration.strategies import (
-    AdaptiveExplorer,
-    BreadthFirstExplorer,
-    DepthFirstExplorer,
-    ExplorationStrategy,
-    GreedyCoverageExplorer,
-    HybridExplorer,
-    RandomWalkExplorer,
-)
+from app.testing.exploration.strategies import (AdaptiveExplorer,
+                                                BreadthFirstExplorer,
+                                                DepthFirstExplorer,
+                                                ExplorationStrategy,
+                                                GreedyCoverageExplorer,
+                                                HybridExplorer,
+                                                RandomWalkExplorer)
 from app.testing.path_tracker import PathTracker
 
 logger = logging.getLogger(__name__)

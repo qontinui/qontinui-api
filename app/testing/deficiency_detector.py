@@ -4,8 +4,10 @@ import logging
 from datetime import datetime
 from typing import Any
 
-from app.testing.enums import DeficiencyCategory, DeficiencySeverity, ExecutionStatus
-from app.testing.models import Deficiency, TransitionExecution, TransitionStatistics
+from app.testing.enums import (DeficiencyCategory, DeficiencySeverity,
+                               ExecutionStatus)
+from app.testing.models import (Deficiency, TransitionExecution,
+                                TransitionStatistics)
 
 logger = logging.getLogger(__name__)
 
