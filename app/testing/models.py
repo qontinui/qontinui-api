@@ -4,7 +4,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
-from app.testing.enums import DeficiencyCategory, DeficiencySeverity, ExecutionStatus
+from app.testing.enums import (DeficiencyCategory, DeficiencySeverity,
+                               ExecutionStatus)
 
 
 @dataclass

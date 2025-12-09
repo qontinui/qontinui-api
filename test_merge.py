@@ -11,7 +11,6 @@ import time
 
 import cv2
 import numpy as np
-
 from qontinui.discovery import PixelStabilityAnalyzer
 from qontinui.discovery.models import AnalysisConfig
 
@@ -199,9 +198,8 @@ def compare_methods():
 
 def test_merge_parameters():
     """Test different merge parameters to find optimal values."""
-    from qontinui.src.qontinui.discovery.pixel_analysis.merge_components import (
-        test_merge_parameters,
-    )
+    from qontinui.src.qontinui.discovery.pixel_analysis.merge_components import \
+        test_merge_parameters
 
     logger.info("\n" + "=" * 60)
     logger.info("TESTING MERGE PARAMETERS")

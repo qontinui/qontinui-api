@@ -599,11 +599,12 @@ def _load_action_histories(db: Session, snapshot_run_id: int) -> dict[str, Any]:
     Returns:
         Dictionary mapping pattern_id to ActionHistory
     """
-    from app.models.snapshot import SnapshotAction, SnapshotPattern
     from qontinui.mock.snapshot import ActionHistory, ActionRecord
     from qontinui.model.element.location import Location
     from qontinui.model.element.region import Region
     from qontinui.model.match.match import Match
+
+    from app.models.snapshot import SnapshotAction, SnapshotPattern
 
     # Get all patterns for this run
     patterns = db.query(SnapshotPattern).filter_by(snapshot_run_id=snapshot_run_id).all()
@@ -673,7 +674,6 @@ def _load_screenshot_registry(snapshot_dir: Path) -> Any:
     import json
 
     from PIL import Image
-
     from qontinui.mock.state_screenshot import StateScreenshotRegistry
 
     registry = StateScreenshotRegistry()
@@ -1087,7 +1087,8 @@ def recommend_snapshots(
     try:
         from datetime import datetime
 
-        from app.services.snapshot_recommendations import SnapshotRecommendationService
+        from app.services.snapshot_recommendations import \
+            SnapshotRecommendationService
 
         service = SnapshotRecommendationService(db)
 
@@ -1158,7 +1159,8 @@ def get_duplicates(
         500: If duplicate detection fails
     """
     try:
-        from app.services.snapshot_deduplication import SnapshotDeduplicationService
+        from app.services.snapshot_deduplication import \
+            SnapshotDeduplicationService
 
         service = SnapshotDeduplicationService(db)
 

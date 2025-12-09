@@ -1,17 +1,7 @@
 """SQLAlchemy models for snapshot data."""
 
-from sqlalchemy import (
-    ARRAY,
-    Boolean,
-    Column,
-    DateTime,
-    ForeignKey,
-    Index,
-    Integer,
-    Numeric,
-    String,
-    Text,
-)
+from sqlalchemy import (ARRAY, Boolean, Column, DateTime, ForeignKey, Index,
+                        Integer, Numeric, String, Text)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 

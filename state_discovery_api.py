@@ -9,7 +9,6 @@ import io
 import json
 import logging
 import os
-
 # Import State Discovery components from qontinui
 import sys
 import uuid
@@ -17,30 +16,25 @@ from datetime import datetime
 from typing import Any
 
 import numpy as np
-from fastapi import (
-    APIRouter,
-    BackgroundTasks,
-    File,
-    HTTPException,
-    UploadFile,
-    WebSocket,
-    WebSocketDisconnect,
-)
+from fastapi import (APIRouter, BackgroundTasks, File, HTTPException,
+                     UploadFile, WebSocket, WebSocketDisconnect)
 from fastapi.responses import JSONResponse
 from PIL import Image as PILImage
 from pydantic import BaseModel
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from qontinui.discovery import AnalysisResult, PixelStabilityMatrixAnalyzer
+# Import State Discovery facade and components from qontinui library
+from qontinui.discovery import (AnalysisResult, DiscoveryAlgorithm,
+                                DiscoveryConfig, StateDiscoveryFacade,
+                                discover_states)
 from qontinui.discovery.deletion_manager import DeletionManager
 from qontinui.discovery.models import AnalysisConfig, DeleteOptions
-from qontinui.discovery.state_construction.state_builder import StateBuilder, TransitionInfo
-
-# Import state detection components
-from qontinui.discovery.state_detection.differential_consistency_detector import (
-    DifferentialConsistencyDetector,
-)
+from qontinui.discovery.state_construction.state_builder import (
+    StateBuilder, TransitionInfo)
+# Import state detection components (still needed for direct detection endpoints)
+from qontinui.discovery.state_detection.differential_consistency_detector import \
+    DifferentialConsistencyDetector
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -497,20 +491,28 @@ async def run_analysis(
     config: AnalysisConfig,
     region_offset: tuple | None = None,
 ):
-    """Run analysis in background with progress updates."""
+    """Run analysis in background with progress updates using the StateDiscoveryFacade."""
     try:
-        # Create analyzer - use Matrix analyzer for non-rectangular shape discovery
-        # The Matrix analyzer finds actual shapes, not just rectangular regions
-        analyzer = PixelStabilityMatrixAnalyzer(config)
-        logger.info("Using Pixel Stability Matrix analyzer for non-rectangular shape discovery")
+        # Create discovery config from the analysis config
+        discovery_config = DiscoveryConfig(
+            algorithm=DiscoveryAlgorithm.PIXEL_STABILITY,
+            min_region_size=config.min_region_size,
+            max_region_size=config.max_region_size,
+            stability_threshold=config.stability_threshold,
+            min_screenshots=config.min_screenshots_present,
+            similarity_threshold=config.similarity_threshold,
+            enable_state_grouping=config.enable_cooccurrence_analysis,
+        )
+
+        # Create facade with config
+        facade = StateDiscoveryFacade(discovery_config)
+        logger.info("Using StateDiscoveryFacade for state discovery")
 
         # Progress callback
         async def progress_callback(progress_data):
             await manager.send_update(analysis_id, {"type": "progress", "data": progress_data})
 
         # Run analysis with progress updates
-        # Note: This is a simplified version. In production, you'd need
-        # to make the analyzer async or run in thread pool
         await manager.send_update(
             analysis_id,
             {
@@ -523,7 +525,6 @@ async def run_analysis(
             },
         )
 
-        # Simulate analysis steps with progress
         import time
 
         analysis_start = time.time()
@@ -533,9 +534,16 @@ async def run_analysis(
         if region_offset:
             logger.info(f"Using region offset: ({region_offset[0]}, {region_offset[1]})")
 
-        # Simply run the analysis without signal alarms (they don't work well in threads)
+        # Use the facade for discovery
         try:
-            result = analyzer.analyze_screenshots(screenshots)
+            discovery_result = facade.discover_states(screenshots)
+            # Convert DiscoveryResult back to AnalysisResult for compatibility
+            result = AnalysisResult(
+                states=discovery_result.states,
+                state_images=discovery_result.state_images,
+                transitions=[],  # Transitions handled separately
+                statistics=discovery_result.statistics,
+            )
         except Exception as e:
             logger.error(f"Analysis failed: {e}")
             import traceback

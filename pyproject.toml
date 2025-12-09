@@ -1,3 +1,8 @@
+[[tool.poetry.source]]
+name = "pytorch-cuda"
+url = "https://download.pytorch.org/whl/cu124"
+priority = "explicit"
+
 [tool.poetry]
 name = "qontinui-api"
 version = "0.1.1"
@@ -42,6 +47,8 @@ easyocr = "^1.7.0"
 redis = "^7.1.0"
 slowapi = "^0.1.9"
 qontinui = {path = "../qontinui", develop = true}
+torch = {version = "^2.5", source = "pytorch-cuda"}
+torchvision = {version = "^0.20", source = "pytorch-cuda"}
 aiofiles = "^25.1.0"
 aioboto3 = "^15.5.0"
 
