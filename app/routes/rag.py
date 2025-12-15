@@ -409,54 +409,78 @@ def save_rag_config(db: Session, project: Project, rag_config: dict[str, Any]) -
 
 def generate_element_description(element: RAGElement) -> str:
     """
-    Generate a text description for an element based on its properties.
+    Generate a natural language description for an element based on its properties.
 
     This is used for text embeddings and semantic search. The description
-    should capture the element's purpose, appearance, and context.
+    should capture the element's purpose, appearance, and context in a way
+    that would be useful for both vector similarity search and human understanding.
 
-    TODO: Replace with actual AI/LLM for better descriptions
+    The description is generated using a rule-based approach that prioritizes:
+    1. OCR text (most distinctive for matching)
+    2. Semantic role and action (what the element does)
+    3. Element type and interaction
+    4. Visual state and context
+    5. Positional information
     """
-    description_parts = []
-
-    # Element type and subtype
-    if element.element_type:
-        type_str = element.element_type
-        if element.element_subtype:
-            type_str = f"{element.element_subtype} {type_str}"
-        description_parts.append(type_str)
-
-    # OCR text (most important for identification)
+    # Start with the most important identifier - OCR text
     if element.ocr_text:
-        description_parts.append(f'with text "{element.ocr_text}"')
+        base = f'"{element.ocr_text}"'
 
-    # Semantic role and action
-    if element.semantic_role:
-        description_parts.append(f"serving as {element.semantic_role}")
+        # Add semantic role/action to explain what this text represents
+        if element.semantic_role:
+            base += f" {element.semantic_role}"
+        elif element.element_type:
+            # Fallback to element type if no semantic role
+            type_str = element.element_subtype if element.element_subtype else element.element_type
+            base += f" {type_str}"
+        else:
+            base += " element"
 
-    if element.semantic_action:
-        description_parts.append(f"for {element.semantic_action}")
+        # Add action context if available
+        if element.semantic_action:
+            base += f" for {element.semantic_action}"
+    else:
+        # No OCR text - build description from type and role
+        if element.semantic_role:
+            base = f"{element.semantic_role}"
+            if element.semantic_action:
+                base += f" for {element.semantic_action}"
+        elif element.element_type:
+            type_str = element.element_type
+            if element.element_subtype:
+                type_str = f"{element.element_subtype} {type_str}"
+            base = type_str
+        else:
+            base = "UI element"
 
-    # Interaction type
-    if element.interaction_type:
-        description_parts.append(f"with {element.interaction_type} interaction")
+    # Add contextual information
+    context_parts = []
 
-    # Visual state
+    # Interaction type adds important behavioral context
+    if element.interaction_type and element.interaction_type != "none":
+        context_parts.append(f"{element.interaction_type}")
+
+    # Visual state is important for finding elements in specific states
     if element.visual_state and element.visual_state != "normal":
-        description_parts.append(f"in {element.visual_state} state")
+        context_parts.append(f"{element.visual_state}")
 
-    # Position context
+    # Position helps disambiguate similar elements
     if element.position_quadrant:
-        description_parts.append(f"located in {element.position_quadrant}")
+        context_parts.append(f"in {element.position_quadrant}")
 
-    # Parent region context
+    # Parent region provides hierarchical context
     if element.parent_region:
-        description_parts.append(f"within {element.parent_region}")
+        context_parts.append(f"within {element.parent_region}")
 
-    # State information
+    # State name is crucial for state-specific matching
     if element.state_name:
-        description_parts.append(f"in '{element.state_name}' state")
+        context_parts.append(f"on '{element.state_name}' screen")
 
-    return " ".join(description_parts) if description_parts else "UI element"
+    # Combine base description with context
+    if context_parts:
+        return f"{base}, {', '.join(context_parts)}"
+
+    return base
 
 
 # ============================================================================
