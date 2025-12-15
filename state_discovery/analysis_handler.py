@@ -9,6 +9,7 @@ import logging
 import time
 
 import numpy as np
+
 from qontinui.discovery import PixelStabilityMatrixAnalyzer
 from qontinui.discovery.models import AnalysisConfig
 

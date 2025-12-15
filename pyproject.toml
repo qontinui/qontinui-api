@@ -27,19 +27,19 @@ packages = [{include = "app"}]
 
 [tool.poetry.dependencies]
 python = "^3.12,<3.14"
-fastapi = "^0.104.1"
-uvicorn = {extras = ["standard"], version = "^0.24.0"}
-python-multipart = "^0.0.6"
-pillow = "^10.2"
+fastapi = "^0.124"
+uvicorn = {extras = ["standard"], version = "^0.38"}
+python-multipart = ">=0.0.9"
+pillow = "^11"
 numpy = "^1.26"
 opencv-python = "^4.9"
-pydantic = "^2.5.0"
-pydantic-settings = "^2.0.3"
+pydantic = "^2.12"
+pydantic-settings = "^2.12"
 python-jose = {extras = ["cryptography"], version = "^3.3.0"}
 cors = "^1.0.1"
 passlib = {extras = ["bcrypt"], version = "^1.7.4"}
 sqlalchemy = "^2.0.43"
-alembic = "^1.13.0"
+alembic = "^1.16"
 psycopg2-binary = "^2.9.9"
 python-dotenv = "^1.0.0"
 email-validator = "^2.3.0"
@@ -54,12 +54,12 @@ aiofiles = "^25.1.0"
 aioboto3 = "^15.5.0"
 
 [tool.poetry.group.dev.dependencies]
-pytest = "^8.0"
-pytest-cov = "^5.0"
-black = "^24.0"
-ruff = "^0.6"
-mypy = "^1.8"
-pre-commit = "^3.6"
+pytest = "^8.3"
+pytest-cov = "^6.0"
+black = "^24.10"
+ruff = "^0.14"
+mypy = "^1.14"
+pre-commit = "^4"
 flake8 = "^7.3.0"
 types-requests = "^2.32.4.20250913"
 types-pyyaml = "^6.0.12.20250915"

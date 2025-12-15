@@ -13,6 +13,7 @@ import cv2
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
 from qontinui.discovery import PixelStabilityAnalyzer
 from qontinui.discovery.models import AnalysisConfig
 

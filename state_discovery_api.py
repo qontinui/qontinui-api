@@ -9,6 +9,7 @@ import io
 import json
 import logging
 import os
+
 # Import State Discovery components from qontinui
 import sys
 import uuid
@@ -16,8 +17,15 @@ from datetime import datetime
 from typing import Any
 
 import numpy as np
-from fastapi import (APIRouter, BackgroundTasks, File, HTTPException,
-                     UploadFile, WebSocket, WebSocketDisconnect)
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    File,
+    HTTPException,
+    UploadFile,
+    WebSocket,
+    WebSocketDisconnect,
+)
 from fastapi.responses import JSONResponse
 from PIL import Image as PILImage
 from pydantic import BaseModel
@@ -25,16 +33,20 @@ from pydantic import BaseModel
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Import State Discovery facade and components from qontinui library
-from qontinui.discovery import (AnalysisResult, DiscoveryAlgorithm,
-                                DiscoveryConfig, StateDiscoveryFacade,
-                                discover_states)
+from qontinui.discovery import (
+    AnalysisResult,
+    DiscoveryAlgorithm,
+    DiscoveryConfig,
+    StateDiscoveryFacade,
+)
 from qontinui.discovery.deletion_manager import DeletionManager
 from qontinui.discovery.models import AnalysisConfig, DeleteOptions
-from qontinui.discovery.state_construction.state_builder import (
-    StateBuilder, TransitionInfo)
+from qontinui.discovery.state_construction.state_builder import StateBuilder, TransitionInfo
+
 # Import state detection components (still needed for direct detection endpoints)
-from qontinui.discovery.state_detection.differential_consistency_detector import \
-    DifferentialConsistencyDetector
+from qontinui.discovery.state_detection.differential_consistency_detector import (
+    DifferentialConsistencyDetector,
+)
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)

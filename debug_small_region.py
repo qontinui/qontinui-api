@@ -12,6 +12,7 @@ import traceback
 
 import cv2
 import numpy as np
+
 from qontinui.discovery import PixelStabilityAnalyzer
 from qontinui.discovery.models import AnalysisConfig
 
@@ -116,8 +117,7 @@ def debug_analysis_steps():
         timer.start("extract_stable_regions")
 
         # Add more detailed logging inside
-        from qontinui.discovery.pixel_analysis.merge_components import \
-            merge_nearby_components
+        from qontinui.discovery.pixel_analysis.merge_components import merge_nearby_components
 
         # Test component merging directly
         timer.start("merge_nearby_components")

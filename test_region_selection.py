@@ -10,6 +10,7 @@ import logging
 
 import cv2
 import numpy as np
+
 from qontinui.discovery import PixelStabilityAnalyzer
 from qontinui.discovery.models import AnalysisConfig
 
