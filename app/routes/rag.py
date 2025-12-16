@@ -695,7 +695,7 @@ async def batch_generate_descriptions(
     total_missing = 0
 
     # Find and update elements with missing descriptions
-    for element_id, element_data in elements.items():
+    for _element_id, element_data in elements.items():
         element = RAGElement(**element_data)
 
         # Check if description is missing or empty
