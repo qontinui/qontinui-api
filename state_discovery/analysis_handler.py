@@ -45,7 +45,9 @@ class AnalysisHandler:
         4. Returns results
         """
         print(f"[ANALYSIS] Starting analysis {analysis_id}")
-        logger.info(f"Starting analysis {analysis_id} with {len(upload.screenshots)} screenshots")
+        logger.info(
+            f"Starting analysis {analysis_id} with {len(upload.screenshots)} screenshots"
+        )
 
         try:
             # Send initial progress
@@ -60,7 +62,9 @@ class AnalysisHandler:
             screenshots = self._prepare_screenshots(upload.screenshots, region)
 
             # Send preparation complete
-            await manager.send_progress(analysis_id, "preparation", 10, "Screenshots prepared")
+            await manager.send_progress(
+                analysis_id, "preparation", 10, "Screenshots prepared"
+            )
 
             # Create and run analyzer
             print(f"[ANALYSIS] Creating analyzer for {analysis_id}")
@@ -104,7 +108,9 @@ class AnalysisHandler:
             raise
 
     def _prepare_screenshots(
-        self, screenshots: list[np.ndarray], region: tuple[int, int, int, int] | None = None
+        self,
+        screenshots: list[np.ndarray],
+        region: tuple[int, int, int, int] | None = None,
     ) -> list[np.ndarray]:
         """Prepare screenshots for analysis (crop if needed)."""
         if not region:
@@ -124,7 +130,9 @@ class AnalysisHandler:
             cropped_img = screenshot[y1:y2, x1:x2]
             cropped.append(cropped_img)
 
-            logger.debug(f"Screenshot {i}: cropped from {screenshot.shape} to {cropped_img.shape}")
+            logger.debug(
+                f"Screenshot {i}: cropped from {screenshot.shape} to {cropped_img.shape}"
+            )
 
         return cropped
 
@@ -166,7 +174,9 @@ class BackgroundTaskRunner:
 
         except Exception as e:
             print(f"[RUNNER] Error in analysis {analysis_id}: {e}")
-            logger.error(f"Background analysis failed for {analysis_id}: {e}", exc_info=True)
+            logger.error(
+                f"Background analysis failed for {analysis_id}: {e}", exc_info=True
+            )
 
         finally:
             loop.close()

@@ -22,7 +22,9 @@ class StatisticsSchema(BaseModel):
     total_actions: int = Field(ge=0, description="Total number of actions executed")
     successful_actions: int = Field(ge=0, description="Number of successful actions")
     failed_actions: int = Field(ge=0, description="Number of failed actions")
-    total_screenshots: int = Field(ge=0, description="Total number of screenshots captured")
+    total_screenshots: int = Field(
+        ge=0, description="Total number of screenshots captured"
+    )
 
     @field_validator("failed_actions")
     @classmethod
@@ -46,14 +48,22 @@ class SnapshotMetadataSchema(BaseModel):
     the entire snapshot run.
     """
 
-    run_id: str = Field(min_length=1, description="Unique identifier for this snapshot run")
+    run_id: str = Field(
+        min_length=1, description="Unique identifier for this snapshot run"
+    )
     start_time: str = Field(description="ISO 8601 timestamp when snapshot started")
-    end_time: str | None = Field(None, description="ISO 8601 timestamp when snapshot ended")
-    duration_seconds: float | None = Field(None, ge=0, description="Total duration in seconds")
+    end_time: str | None = Field(
+        None, description="ISO 8601 timestamp when snapshot ended"
+    )
+    duration_seconds: float | None = Field(
+        None, ge=0, description="Total duration in seconds"
+    )
     execution_mode: str = Field(
         min_length=1, description="Execution mode (e.g., 'live', 'mock', 'screenshot')"
     )
-    statistics: StatisticsSchema = Field(description="Statistics about the snapshot run")
+    statistics: StatisticsSchema = Field(
+        description="Statistics about the snapshot run"
+    )
     patterns: dict[str, Any] = Field(
         default_factory=dict, description="Pattern information by pattern ID"
     )
@@ -97,12 +107,22 @@ class ActionLogItemSchema(BaseModel):
     """
 
     timestamp: str = Field(description="ISO 8601 timestamp when action was executed")
-    action_type: str = Field(min_length=1, description="Type of action (e.g., 'FIND', 'CLICK')")
-    pattern_id: str | None = Field(None, description="ID of pattern used, if applicable")
-    pattern_name: str | None = Field(None, description="Name of pattern used, if applicable")
-    success: bool = Field(default=True, description="Whether action completed successfully")
+    action_type: str = Field(
+        min_length=1, description="Type of action (e.g., 'FIND', 'CLICK')"
+    )
+    pattern_id: str | None = Field(
+        None, description="ID of pattern used, if applicable"
+    )
+    pattern_name: str | None = Field(
+        None, description="Name of pattern used, if applicable"
+    )
+    success: bool = Field(
+        default=True, description="Whether action completed successfully"
+    )
     match_count: int | None = Field(None, ge=0, description="Number of matches found")
-    duration_ms: float | None = Field(None, ge=0, description="Action duration in milliseconds")
+    duration_ms: float | None = Field(
+        None, ge=0, description="Action duration in milliseconds"
+    )
     active_states: list[str] = Field(
         default_factory=list, description="List of active state IDs during action"
     )
@@ -133,7 +153,9 @@ class MatchHistoryItemSchema(BaseModel):
     y: int = Field(ge=0, description="Y coordinate of match")
     width: int = Field(gt=0, description="Width of match region")
     height: int = Field(gt=0, description="Height of match region")
-    score: float | None = Field(None, ge=0, le=1, description="Match confidence score (0-1)")
+    score: float | None = Field(
+        None, ge=0, le=1, description="Match confidence score (0-1)"
+    )
 
     model_config = {"extra": "allow"}  # Allow additional fields for extensibility
 
@@ -175,7 +197,10 @@ class ValidationError(Exception):
     """
 
     def __init__(
-        self, message: str, errors: list[dict[str, Any]] | None = None, file_path: str | None = None
+        self,
+        message: str,
+        errors: list[dict[str, Any]] | None = None,
+        file_path: str | None = None,
     ):
         """Initialize validation error.
 
@@ -195,7 +220,11 @@ class ValidationError(Exception):
             f"  - {err.get('loc', '')}: {err.get('msg', '')}" for err in self.errors
         )
         file_info = f" in {self.file_path}" if self.file_path else ""
-        return f"{self.message}{file_info}\n{error_details}" if error_details else self.message
+        return (
+            f"{self.message}{file_info}\n{error_details}"
+            if error_details
+            else self.message
+        )
 
 
 def validate_snapshot_metadata(

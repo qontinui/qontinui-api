@@ -143,7 +143,11 @@ class SnapshotQueryService:
 
     def _get_pattern_usage(self, snapshot_run_id: int) -> list[dict[str, Any]]:
         """Get pattern usage statistics for a snapshot."""
-        patterns = self.db.query(SnapshotPattern).filter_by(snapshot_run_id=snapshot_run_id).all()
+        patterns = (
+            self.db.query(SnapshotPattern)
+            .filter_by(snapshot_run_id=snapshot_run_id)
+            .all()
+        )
 
         usage = []
         for pattern in patterns:
@@ -160,7 +164,9 @@ class SnapshotQueryService:
                     "uses": pattern.total_finds,
                     "success_rate": round(success_rate, 3),
                     "avg_duration_ms": (
-                        float(pattern.avg_duration_ms) if pattern.avg_duration_ms else 0.0
+                        float(pattern.avg_duration_ms)
+                        if pattern.avg_duration_ms
+                        else 0.0
                     ),
                     "total_matches": pattern.total_matches,
                 }
@@ -190,7 +196,9 @@ class SnapshotQueryService:
                     "pattern_id": action.pattern_id,
                     "pattern_name": action.pattern_name,
                     "success": action.success,
-                    "duration_ms": float(action.duration_ms) if action.duration_ms else 0.0,
+                    "duration_ms": (
+                        float(action.duration_ms) if action.duration_ms else 0.0
+                    ),
                     "match_count": action.match_count,
                     "active_states": action.active_states or [],
                 }
@@ -217,7 +225,9 @@ class SnapshotQueryService:
         if not durations:
             return {
                 "total_duration_seconds": (
-                    float(snapshot.duration_seconds) if snapshot.duration_seconds else 0.0
+                    float(snapshot.duration_seconds)
+                    if snapshot.duration_seconds
+                    else 0.0
                 ),
                 "avg_action_duration_ms": 0.0,
                 "slowest_action_ms": 0.0,
@@ -256,7 +266,9 @@ class SnapshotQueryService:
         query = self.db.query(SnapshotPattern).filter_by(pattern_id=pattern_id)
 
         # Join with snapshot_runs for filtering
-        query = query.join(SnapshotRun, SnapshotPattern.snapshot_run_id == SnapshotRun.id)
+        query = query.join(
+            SnapshotRun, SnapshotPattern.snapshot_run_id == SnapshotRun.id
+        )
 
         if start_date:
             query = query.filter(SnapshotRun.start_time >= start_date)
@@ -395,7 +407,9 @@ class SnapshotQueryService:
             "pattern_usage_trend": pattern_usage_trend,
         }
 
-    def _get_success_rate_trend(self, base_query, group_by: str) -> list[dict[str, Any]]:
+    def _get_success_rate_trend(
+        self, base_query, group_by: str
+    ) -> list[dict[str, Any]]:
         """Get success rate trend from base query."""
         date_func = func.date(SnapshotRun.start_time)
 
@@ -404,7 +418,13 @@ class SnapshotQueryService:
                 date_func.label("date"),
                 func.count(SnapshotRun.id).label("total_runs"),
                 func.sum(
-                    case((SnapshotRun.successful_actions == SnapshotRun.total_actions, 1), else_=0)
+                    case(
+                        (
+                            SnapshotRun.successful_actions == SnapshotRun.total_actions,
+                            1,
+                        ),
+                        else_=0,
+                    )
                 ).label("successful_runs"),
                 func.avg(
                     func.cast(SnapshotRun.successful_actions, func.Float())  # type: ignore[arg-type]
@@ -430,7 +450,9 @@ class SnapshotQueryService:
 
         return trend
 
-    def _get_execution_count_trend(self, base_query, group_by: str) -> list[dict[str, Any]]:
+    def _get_execution_count_trend(
+        self, base_query, group_by: str
+    ) -> list[dict[str, Any]]:
         """Get execution count by mode over time."""
         date_func = func.date(SnapshotRun.start_time)
 
@@ -466,7 +488,9 @@ class SnapshotQueryService:
                 SnapshotPattern.pattern_id,
                 SnapshotPattern.pattern_name,
                 func.sum(SnapshotPattern.failed_finds).label("failure_count"),
-                func.count(func.distinct(SnapshotPattern.snapshot_run_id)).label("affected_runs"),
+                func.count(func.distinct(SnapshotPattern.snapshot_run_id)).label(
+                    "affected_runs"
+                ),
             )
             .join(SnapshotRun, SnapshotPattern.snapshot_run_id == SnapshotRun.id)
             .filter(SnapshotRun.start_time >= start_date)

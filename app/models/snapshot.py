@@ -1,4 +1,16 @@
-"""SQLAlchemy models for snapshot data."""
+"""SQLAlchemy models for snapshot data.
+
+TODO: DEPRECATED - These models have been migrated to qontinui-web/backend.
+This file should be removed once all qontinui-api code is updated to use
+the backend database directly.
+
+Migration status:
+- ✅ Models copied to qontinui-web/backend/app/models/snapshot.py
+- ✅ Relationships updated in SnapshotRun to include new models
+- ✅ Alembic migration created in backend
+- ⏳ Pending: Update qontinui-api routes to use backend database
+- ⏳ Pending: Remove this file
+"""
 
 from sqlalchemy import (
     ARRAY,
@@ -53,8 +65,12 @@ class SnapshotRun(Base):  # type: ignore[misc,valid-type]
     metadata_json = Column(JSONB, nullable=False)
 
     # Optional associations
-    workflow_id = Column(Integer, ForeignKey("workflows.id", ondelete="SET NULL"), nullable=True)
-    created_by = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    workflow_id = Column(
+        Integer, ForeignKey("workflows.id", ondelete="SET NULL"), nullable=True
+    )
+    created_by = Column(
+        Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
 
     # Tags and notes
     tags: list[str] = Column(ARRAY(Text), nullable=True)  # type: ignore[assignment]
@@ -134,7 +150,9 @@ class SnapshotAction(Base):  # type: ignore[misc,valid-type]
 
     # Indexes
     __table_args__ = (
-        Index("idx_snapshot_actions_run_sequence", "snapshot_run_id", "sequence_number"),
+        Index(
+            "idx_snapshot_actions_run_sequence", "snapshot_run_id", "sequence_number"
+        ),
         Index("idx_snapshot_actions_timestamp", "timestamp"),
         Index("idx_snapshot_actions_pattern_id", "pattern_id"),
         Index("idx_snapshot_actions_action_type", "action_type"),
@@ -198,7 +216,8 @@ class SnapshotPattern(Base):  # type: ignore[misc,valid-type]
 
     def __repr__(self) -> str:
         return (
-            f"<SnapshotPattern(run_id={self.snapshot_run_id}, " f"pattern_id='{self.pattern_id}')>"
+            f"<SnapshotPattern(run_id={self.snapshot_run_id}, "
+            f"pattern_id='{self.pattern_id}')>"
         )
 
 

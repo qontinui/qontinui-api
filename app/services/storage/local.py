@@ -33,7 +33,11 @@ class LocalStorageBackend(StorageBackendInterface):
         return self.base_path / relative_path
 
     async def store_video(
-        self, session_id: str, video_data: BinaryIO, filename: str, content_type: str = "video/mp4"
+        self,
+        session_id: str,
+        video_data: BinaryIO,
+        filename: str,
+        content_type: str = "video/mp4",
     ) -> StoredFile:
         """Store a video file on local filesystem."""
         relative_path = self._generate_video_path(session_id, filename)
@@ -55,7 +59,10 @@ class LocalStorageBackend(StorageBackendInterface):
         size_bytes = await aiofiles.os.path.getsize(full_path)
 
         return StoredFile(
-            path=relative_path, size_bytes=size_bytes, content_type=content_type, url=str(full_path)
+            path=relative_path,
+            size_bytes=size_bytes,
+            content_type=content_type,
+            url=str(full_path),
         )
 
     async def store_frame(

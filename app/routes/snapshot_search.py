@@ -151,7 +151,9 @@ def search_snapshots(
                     id=snapshot.id,
                     run_id=snapshot.run_id,
                     start_time=snapshot.start_time.isoformat(),
-                    end_time=snapshot.end_time.isoformat() if snapshot.end_time else None,
+                    end_time=(
+                        snapshot.end_time.isoformat() if snapshot.end_time else None
+                    ),
                     execution_mode=snapshot.execution_mode,
                     total_actions=snapshot.total_actions,
                     successful_actions=snapshot.successful_actions,
@@ -208,7 +210,9 @@ def get_snapshot_statistics(
 @router.get("/patterns/{pattern_id}/analytics", response_model=PatternAnalytics)
 def get_pattern_analytics(
     pattern_id: str,
-    start_date: str | None = Query(None, description="Start date (ISO format: YYYY-MM-DD)"),
+    start_date: str | None = Query(
+        None, description="Start date (ISO format: YYYY-MM-DD)"
+    ),
     end_date: str | None = Query(None, description="End date (ISO format: YYYY-MM-DD)"),
     workflow_id: int | None = Query(None, description="Filter by workflow ID"),
     db: Session = Depends(get_db),

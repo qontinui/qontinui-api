@@ -290,7 +290,16 @@ class FrameExtractor:
         """
         video_path = await self.storage.get_video_path(session_id, video_filename)
 
-        cmd = ["ffprobe", "-v", "quiet", "-show_streams", "-show_format", "-of", "json", video_path]
+        cmd = [
+            "ffprobe",
+            "-v",
+            "quiet",
+            "-show_streams",
+            "-show_format",
+            "-of",
+            "json",
+            video_path,
+        ]
 
         process = await asyncio.create_subprocess_exec(
             *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
@@ -328,7 +337,9 @@ class FrameExtractor:
             "height": video_stream.get("height"),
             "fps": fps,
             "codec": video_stream.get("codec_name"),
-            "duration_ms": int(float(probe_data.get("format", {}).get("duration", 0)) * 1000),
+            "duration_ms": int(
+                float(probe_data.get("format", {}).get("duration", 0)) * 1000
+            ),
             "total_frames": int(video_stream.get("nb_frames", 0)) or None,
             "bit_rate": int(video_stream.get("bit_rate", 0)) or None,
         }

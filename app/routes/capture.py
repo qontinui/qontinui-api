@@ -65,8 +65,12 @@ class SessionResponse(BaseModel):
 class InputEventRequest(BaseModel):
     """Request for recording input events."""
 
-    timestamp_ms: int = Field(..., description="Timestamp in milliseconds from session start")
-    event_type: str = Field(..., description="Event type (mouse_click, key_press, etc.)")
+    timestamp_ms: int = Field(
+        ..., description="Timestamp in milliseconds from session start"
+    )
+    event_type: str = Field(
+        ..., description="Event type (mouse_click, key_press, etc.)"
+    )
     mouse_x: int | None = None
     mouse_y: int | None = None
     mouse_button: int | None = None
@@ -265,7 +269,9 @@ async def get_sessions_for_project(
 
 
 @router.post("/events")
-async def record_input_events(request: RecordEventsRequest, db: Session = Depends(get_db)):
+async def record_input_events(
+    request: RecordEventsRequest, db: Session = Depends(get_db)
+):
     """Record input events for a capture session."""
     service = CaptureService(db)
 
@@ -320,13 +326,17 @@ async def get_input_events(
 
 @router.post("/historical/index/{snapshot_run_id}")
 async def index_historical_results(
-    snapshot_run_id: int, capture_session_id: int | None = None, db: Session = Depends(get_db)
+    snapshot_run_id: int,
+    capture_session_id: int | None = None,
+    db: Session = Depends(get_db),
 ):
     """Index historical results from a snapshot run."""
     service = CaptureService(db)
 
     try:
-        count = await service.index_historical_results(snapshot_run_id, capture_session_id)
+        count = await service.index_historical_results(
+            snapshot_run_id, capture_session_id
+        )
         return {"indexed": count}
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
@@ -335,7 +345,9 @@ async def index_historical_results(
 
 
 @router.post("/historical/random", response_model=HistoricalResultResponse | None)
-async def get_random_historical_result(request: RandomResultRequest, db: Session = Depends(get_db)):
+async def get_random_historical_result(
+    request: RandomResultRequest, db: Session = Depends(get_db)
+):
     """Get a random historical result matching criteria.
 
     This is the key endpoint for integration testing - it returns
@@ -363,7 +375,9 @@ async def get_random_historical_result(request: RandomResultRequest, db: Session
         active_states=result.active_states,
         success=result.success,
         match_count=result.match_count,
-        best_match_score=float(result.best_match_score) if result.best_match_score else None,
+        best_match_score=(
+            float(result.best_match_score) if result.best_match_score else None
+        ),
         match_x=result.match_x,
         match_y=result.match_y,
         match_width=result.match_width,
@@ -374,7 +388,9 @@ async def get_random_historical_result(request: RandomResultRequest, db: Session
     )
 
 
-@router.get("/historical/pattern/{pattern_id}", response_model=list[HistoricalResultResponse])
+@router.get(
+    "/historical/pattern/{pattern_id}", response_model=list[HistoricalResultResponse]
+)
 async def get_historical_results_for_pattern(
     pattern_id: str,
     action_type: str,
@@ -388,7 +404,10 @@ async def get_historical_results_for_pattern(
     state_list = active_states.split(",") if active_states else None
 
     results = await service.get_historical_results_for_action(
-        pattern_id=pattern_id, action_type=action_type, active_states=state_list, limit=limit
+        pattern_id=pattern_id,
+        action_type=action_type,
+        active_states=state_list,
+        limit=limit,
     )
 
     return [
@@ -447,7 +466,9 @@ async def get_playback_frames(
     """
     service = CaptureService(db)
 
-    frames = await service.get_frames_for_integration_test(request.historical_result_ids)
+    frames = await service.get_frames_for_integration_test(
+        request.historical_result_ids
+    )
 
     return [
         FrameResponse(
@@ -461,7 +482,9 @@ async def get_playback_frames(
             match_width=f["match_width"],
             match_height=f["match_height"],
             timestamp_ms=f["timestamp_ms"],
-            frame_base64=base64.b64encode(f["frame_data"]).decode() if f["frame_data"] else None,
+            frame_base64=(
+                base64.b64encode(f["frame_data"]).decode() if f["frame_data"] else None
+            ),
             has_frame=f["has_frame"],
         )
         for f in frames
@@ -571,12 +594,16 @@ async def get_available_monitors():
             detail=f"Screen capture not available: qontinui library not installed: {e}",
         ) from e
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get monitors: {str(e)}") from e
+        raise HTTPException(
+            status_code=500, detail=f"Failed to get monitors: {str(e)}"
+        ) from e
 
 
 @router.get("/screenshot/current", response_model=ScreenshotResponse)
 async def capture_current_screenshot(
-    monitor: int | None = Query(None, description="Monitor index (None for all monitors)"),
+    monitor: int | None = Query(
+        None, description="Monitor index (None for all monitors)"
+    ),
     quality: int = Query(95, ge=1, le=100, description="PNG compression level (1-100)"),
 ):
     """Capture a screenshot from the current display.
@@ -633,7 +660,9 @@ async def capture_current_screenshot(
 
 @router.get("/screenshot/current/raw")
 async def capture_current_screenshot_raw(
-    monitor: int | None = Query(None, description="Monitor index (None for all monitors)"),
+    monitor: int | None = Query(
+        None, description="Monitor index (None for all monitors)"
+    ),
     quality: int = Query(95, ge=1, le=100, description="PNG compression level (1-100)"),
 ):
     """Capture a screenshot and return as raw PNG image.
@@ -689,7 +718,9 @@ async def capture_screenshot_region(
     y: int = Query(..., description="Y coordinate of top-left corner"),
     width: int = Query(..., gt=0, description="Region width in pixels"),
     height: int = Query(..., gt=0, description="Region height in pixels"),
-    monitor: int | None = Query(None, description="Monitor index for relative coordinates"),
+    monitor: int | None = Query(
+        None, description="Monitor index for relative coordinates"
+    ),
     quality: int = Query(95, ge=1, le=100, description="PNG compression level"),
 ):
     """Capture a specific region of the screen.
@@ -739,4 +770,6 @@ async def capture_screenshot_region(
             detail=f"Screen capture not available: qontinui library not installed: {e}",
         ) from e
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to capture region: {str(e)}") from e
+        raise HTTPException(
+            status_code=500, detail=f"Failed to capture region: {str(e)}"
+        ) from e

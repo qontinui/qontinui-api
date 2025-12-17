@@ -69,7 +69,9 @@ class FilterBuilder:
 
             # Apply each operator
             for operator, value in filter_spec.items():
-                condition = FilterBuilder._build_condition(field, field_name, operator, value)
+                condition = FilterBuilder._build_condition(
+                    field, field_name, operator, value
+                )
                 if condition is not None:
                     filter_conditions.append(condition)
 

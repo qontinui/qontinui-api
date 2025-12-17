@@ -109,7 +109,9 @@ class StateCoverageAnalyzer:
         """
         # Verify snapshot runs exist
         snapshot_runs = (
-            self.db.query(SnapshotRun).filter(SnapshotRun.run_id.in_(snapshot_run_ids)).all()
+            self.db.query(SnapshotRun)
+            .filter(SnapshotRun.run_id.in_(snapshot_run_ids))
+            .all()
         )
 
         if not snapshot_runs:
@@ -132,7 +134,9 @@ class StateCoverageAnalyzer:
         transitions = self._analyze_transitions(snapshot_ids)
 
         # Calculate overall metrics
-        covered_states = sum(1 for m in state_metrics.values() if m.screenshot_count > 0)
+        covered_states = sum(
+            1 for m in state_metrics.values() if m.screenshot_count > 0
+        )
         uncovered_states = len(all_states) - covered_states
         covered_transitions = sum(1 for t in transitions if t.covered)
 
@@ -223,7 +227,9 @@ class StateCoverageAnalyzer:
         )
 
         # Initialize metrics for all states
-        metrics = {state: StateCoverageMetrics(state_name=state) for state in all_states}
+        metrics = {
+            state: StateCoverageMetrics(state_name=state) for state in all_states
+        }
 
         # Track state occurrences
         for action in actions:
@@ -417,7 +423,9 @@ class StateCoverageAnalyzer:
                         )
                     )
 
-        return sorted(gaps, key=lambda g: {"high": 0, "medium": 1, "low": 2}[g.severity])
+        return sorted(
+            gaps, key=lambda g: {"high": 0, "medium": 1, "low": 2}[g.severity]
+        )
 
     def _generate_recommendations(
         self,
@@ -447,7 +455,9 @@ class StateCoverageAnalyzer:
         low_coverage = [g for g in coverage_gaps if g.gap_type == "low_coverage_state"]
         if low_coverage:
             states = ", ".join([g.affected_states[0] for g in low_coverage[:3]])
-            recommendations.append(f"MEDIUM PRIORITY: Improve coverage for states: {states}")
+            recommendations.append(
+                f"MEDIUM PRIORITY: Improve coverage for states: {states}"
+            )
 
         # Action diversity
         action_gaps = [g for g in coverage_gaps if g.gap_type == "low_action_coverage"]
@@ -465,7 +475,9 @@ class StateCoverageAnalyzer:
 
         # Best practices
         if not recommendations:
-            recommendations.append("Coverage looks good! Consider adding edge case scenarios.")
+            recommendations.append(
+                "Coverage looks good! Consider adding edge case scenarios."
+            )
 
         return recommendations
 
@@ -502,7 +514,9 @@ class StateCoverageAnalyzer:
             # Check if cache is still valid (less than 5 minutes old)
             cache_time = cached.get("cached_at")
             if cache_time:
-                age = (datetime.now() - datetime.fromisoformat(cache_time)).total_seconds()
+                age = (
+                    datetime.now() - datetime.fromisoformat(cache_time)
+                ).total_seconds()
                 if age < 300:  # 5 minutes
                     return cached.get("report")
 

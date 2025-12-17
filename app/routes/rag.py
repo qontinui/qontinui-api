@@ -27,9 +27,13 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Session, sessionmaker
 
 # Create a separate engine for the main backend database
-BACKEND_DATABASE_URL = "postgresql://qontinui_user:qontinui_dev_password@localhost:5432/qontinui_db"
+BACKEND_DATABASE_URL = (
+    "postgresql://qontinui_user:qontinui_dev_password@localhost:5432/qontinui_db"
+)
 backend_engine = create_engine(BACKEND_DATABASE_URL, pool_pre_ping=True)
-BackendSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=backend_engine)
+BackendSessionLocal = sessionmaker(
+    autocommit=False, autoflush=False, bind=backend_engine
+)
 
 # Type: ignore needed here because declarative_base() returns a dynamic class
 # that mypy cannot properly infer at static analysis time
@@ -57,7 +61,9 @@ class Project(BackendBase):
     project_type = Column(String, nullable=False, default="traditional")
     rag_config = Column(JSON, nullable=True)
     owner_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
-    organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=True)
+    organization_id = Column(
+        UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=True
+    )
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -174,7 +180,9 @@ class RAGElement(BaseModel):
     image_embedding: list[float] | None = None
 
     # Matching Configuration
-    matching_strategy: str | None = None  # "average" or "any_match", null = use project default
+    matching_strategy: str | None = (
+        None  # "average" or "any_match", null = use project default
+    )
     ocr_filter: OCRFilter | None = None
     ocr_config: OCRConfig | None = None
     expected_text: str | None = None
@@ -431,7 +439,11 @@ def generate_element_description(element: RAGElement) -> str:
             base += f" {element.semantic_role}"
         elif element.element_type:
             # Fallback to element type if no semantic role
-            type_str = element.element_subtype if element.element_subtype else element.element_type
+            type_str = (
+                element.element_subtype
+                if element.element_subtype
+                else element.element_type
+            )
             base += f" {type_str}"
         else:
             base += " element"
@@ -501,7 +513,9 @@ async def get_elements(
     return [RAGElement(**elem) for elem in elements.values()]
 
 
-@router.post("/projects/{project_id}/elements", response_model=RAGElement, status_code=201)
+@router.post(
+    "/projects/{project_id}/elements", response_model=RAGElement, status_code=201
+)
 async def create_element(
     project_id: str,
     data: RAGElementFormData,
@@ -553,7 +567,9 @@ async def create_element(
             # Images with Masks
             "images": element_data.get("images", []),
             # Aggregated Embeddings
-            "aggregated_image_embedding": element_data.get("aggregated_image_embedding"),
+            "aggregated_image_embedding": element_data.get(
+                "aggregated_image_embedding"
+            ),
             "aggregated_text_embedding": element_data.get("aggregated_text_embedding"),
             # Legacy Embeddings
             "text_description": element_data.get("text_description", ""),
@@ -653,7 +669,8 @@ async def delete_element(
 
 
 @router.post(
-    "/elements/{element_id}/generate-description", response_model=GenerateDescriptionResponse
+    "/elements/{element_id}/generate-description",
+    response_model=GenerateDescriptionResponse,
 )
 async def generate_description(
     element_id: str,
@@ -675,7 +692,8 @@ async def generate_description(
 
 
 @router.post(
-    "/projects/{project_id}/generate-descriptions", response_model=BatchGenerateDescriptionsResponse
+    "/projects/{project_id}/generate-descriptions",
+    response_model=BatchGenerateDescriptionsResponse,
 )
 async def batch_generate_descriptions(
     project_id: str,
@@ -852,7 +870,9 @@ async def get_transitions(
     return [RAGTransition(**trans) for trans in transitions.values()]
 
 
-@router.post("/projects/{project_id}/transitions", response_model=RAGTransition, status_code=201)
+@router.post(
+    "/projects/{project_id}/transitions", response_model=RAGTransition, status_code=201
+)
 async def create_transition(
     project_id: str,
     data: RAGTransitionFormData,
@@ -898,7 +918,9 @@ async def get_transition(
 
     transitions = rag_config.get("transitions", {})
     if transition_id not in transitions:
-        raise HTTPException(status_code=404, detail=f"Transition {transition_id} not found")
+        raise HTTPException(
+            status_code=404, detail=f"Transition {transition_id} not found"
+        )
 
     return RAGTransition(**transitions[transition_id])
 
@@ -916,7 +938,9 @@ async def update_transition(
 
     transitions = rag_config.get("transitions", {})
     if transition_id not in transitions:
-        raise HTTPException(status_code=404, detail=f"Transition {transition_id} not found")
+        raise HTTPException(
+            status_code=404, detail=f"Transition {transition_id} not found"
+        )
 
     # Update transition
     trans_data = transitions[transition_id]
@@ -944,7 +968,9 @@ async def delete_transition(
 
     transitions = rag_config.get("transitions", {})
     if transition_id not in transitions:
-        raise HTTPException(status_code=404, detail=f"Transition {transition_id} not found")
+        raise HTTPException(
+            status_code=404, detail=f"Transition {transition_id} not found"
+        )
 
     del rag_config["transitions"][transition_id]
 
@@ -1027,7 +1053,9 @@ async def export_project(
 
     elements = [RAGElement(**elem) for elem in rag_config.get("elements", {}).values()]
     states = [RAGState(**state) for state in rag_config.get("states", {}).values()]
-    transitions = [RAGTransition(**trans) for trans in rag_config.get("transitions", {}).values()]
+    transitions = [
+        RAGTransition(**trans) for trans in rag_config.get("transitions", {}).values()
+    ]
 
     return RAGExportData(
         elements=elements,
@@ -1112,7 +1140,9 @@ class RAGFindRequest(BaseModel):
     """Request for RAG element find operation."""
 
     screenshot_base64: str = Field(..., description="Base64 encoded screenshot image")
-    element_id: str | None = Field(None, description="Specific element ID to find (optional)")
+    element_id: str | None = Field(
+        None, description="Specific element ID to find (optional)"
+    )
     similarity_threshold: float = Field(
         0.7, ge=0.0, le=1.0, description="Minimum similarity threshold"
     )
@@ -1120,8 +1150,12 @@ class RAGFindRequest(BaseModel):
         "average", description="Matching strategy: 'average' or 'any_match'"
     )
     use_ocr: bool = Field(False, description="Whether to enable OCR text extraction")
-    return_segments: bool = Field(False, description="Return all segments (for visualization)")
-    max_results: int = Field(10, ge=1, le=50, description="Maximum number of results to return")
+    return_segments: bool = Field(
+        False, description="Return all segments (for visualization)"
+    )
+    max_results: int = Field(
+        10, ge=1, le=50, description="Maximum number of results to return"
+    )
 
 
 class RAGFindMatchBoundingBox(BaseModel):
@@ -1369,7 +1403,9 @@ async def find_elements(
                         text_similarity=match.text_similarity,
                         ocr_similarity=match.ocr_similarity,
                         ocr_text=match.ocr_text,
-                        bounding_box=RAGFindMatchBoundingBox(x=x, y=y, width=w, height=h),
+                        bounding_box=RAGFindMatchBoundingBox(
+                            x=x, y=y, width=w, height=h
+                        ),
                         score=match.combined_score,
                     )
                 )

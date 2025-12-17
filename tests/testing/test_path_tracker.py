@@ -285,7 +285,9 @@ class TestDeficiencyDetection:
         path_tracker.record_transition("dashboard", "settings")  # Only once
 
         # Paths executed only once might be suspicious
-        low_execution_paths = {k: v for k, v in path_tracker.coverage_map.items() if v < 2}
+        low_execution_paths = {
+            k: v for k, v in path_tracker.coverage_map.items() if v < 2
+        }
 
         assert "dashboard->settings" in low_execution_paths
         assert "login->dashboard" not in low_execution_paths

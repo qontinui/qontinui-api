@@ -57,7 +57,9 @@ class ConnectionManager:
             print(f"[WS] Send failed to {analysis_id}: {e}")
             self.disconnect(analysis_id)
 
-    async def send_progress(self, analysis_id: str, stage: str, percentage: int, message: str):
+    async def send_progress(
+        self, analysis_id: str, stage: str, percentage: int, message: str
+    ):
         """Send a progress update."""
         await self.send_update(
             analysis_id,
@@ -69,7 +71,9 @@ class ConnectionManager:
 
     async def send_error(self, analysis_id: str, error_message: str):
         """Send an error message."""
-        await self.send_update(analysis_id, {"type": "error", "data": {"message": error_message}})
+        await self.send_update(
+            analysis_id, {"type": "error", "data": {"message": error_message}}
+        )
 
     async def send_complete(self, analysis_id: str, result: dict[str, Any]):
         """Send analysis completion message."""

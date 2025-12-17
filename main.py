@@ -25,7 +25,6 @@ from slowapi.util import get_remote_address
 
 from app.adapters.state_adapter import convert_multiple_states
 from app.routes.capture import router as capture_router
-from app.routes.integration_testing import router as integration_testing_router
 from app.routes.snapshot_search import router as snapshot_search_router
 
 # Import Snapshot API routers
@@ -112,7 +111,9 @@ def save_session(session_id: str, session: "MockSession", ttl: int = 3600):
         ttl: Time to live in seconds (default: 3600 = 1 hour)
     """
     try:
-        redis_client.setex(f"mock_session:{session_id}", ttl, json.dumps(session.dict()))
+        redis_client.setex(
+            f"mock_session:{session_id}", ttl, json.dumps(session.dict())
+        )
     except Exception as e:
         print(f"Error saving session {session_id} to Redis: {e}")
         raise
@@ -183,9 +184,6 @@ app.include_router(mask_pattern_router, prefix="/api")
 app.include_router(snapshots_router, prefix="/api")
 app.include_router(snapshot_search_router, prefix="/api")
 
-# Include Integration Testing router
-app.include_router(integration_testing_router, prefix="/api")
-
 # Include Capture router (video capture, historical data, frame extraction)
 app.include_router(capture_router, prefix="/api")
 
@@ -252,15 +250,24 @@ class MockSession(BaseModel):
     active_states: list[str] = []
     execution_history: list[dict[str, Any]] = []
     initial_states: list[str] = []  # States marked as initial
-    action_snapshots: list[dict[str, Any]] = []  # Pre-recorded snapshots for integration testing
+    action_snapshots: list[dict[str, Any]] = (
+        []
+    )  # Pre-recorded snapshots for integration testing
     mode: str = "hybrid"  # Execution mode: "hybrid" or "full_mock"
 
 
 class PatternOptimizationRequest(BaseModel):
     screenshots: list[str]  # base64 encoded screenshots (positive examples)
     negative_screenshots: list[str] = []  # base64 encoded negative examples
-    regions: list[dict[str, int]]  # List of regions {x, y, width, height} for each screenshot
-    strategies: list[str] = ["multi-pattern", "consensus", "feature-based", "differential"]
+    regions: list[
+        dict[str, int]
+    ]  # List of regions {x, y, width, height} for each screenshot
+    strategies: list[str] = [
+        "multi-pattern",
+        "consensus",
+        "feature-based",
+        "differential",
+    ]
 
 
 class CreateStateImageRequest(BaseModel):
@@ -301,7 +308,12 @@ def base64_to_qontinui_image(base64_string: str, name: str = "image") -> Image:
 
 def region_to_dict(region: Region) -> dict[str, int]:
     """Convert Qontinui Region to dict"""
-    return {"x": region.x, "y": region.y, "width": region.width, "height": region.height}
+    return {
+        "x": region.x,
+        "y": region.y,
+        "width": region.width,
+        "height": region.height,
+    }
 
 
 def match_to_response(match) -> MatchResponse:
@@ -326,7 +338,10 @@ def match_to_response(match) -> MatchResponse:
             found=True,
             region=region_to_dict(region),
             score=score,
-            center={"x": region.x + region.width // 2, "y": region.y + region.height // 2},
+            center={
+                "x": region.x + region.width // 2,
+                "y": region.y + region.height // 2,
+            },
         )
     return MatchResponse(found=False, region=None, score=0.0, center=None)
 
@@ -391,7 +406,9 @@ async def find_image(request: Request, find_request: FindRequest):
             print(f"[find] Search region set: {search_region}")
 
         # Execute find operation
-        print(f"[find] Executing find operation with similarity={find_request.similarity}...")
+        print(
+            f"[find] Executing find operation with similarity={find_request.similarity}..."
+        )
         match_list = executor.execute(
             pattern=template_pattern,
             search_region=search_region,
@@ -434,7 +451,9 @@ async def find_all_images(request: Request, find_request: FindRequest):
         from qontinui.find.matchers import TemplateMatcher
         from static_screenshot_provider import StaticScreenshotProvider
 
-        print(f"[find_all] Starting pattern matching with similarity={find_request.similarity}")
+        print(
+            f"[find_all] Starting pattern matching with similarity={find_request.similarity}"
+        )
 
         # Convert base64 to PIL and Qontinui Images
         screenshot_pil = base64_to_pil_image(find_request.screenshot)
@@ -602,7 +621,10 @@ async def detect_states(request: StateDetectionRequest):
 
 @app.post("/validate_location")
 async def validate_location(
-    screenshot: str, location_x: int, location_y: int, reference_image: str | None = None
+    screenshot: str,
+    location_x: int,
+    location_y: int,
+    reference_image: str | None = None,
 ):
     """
     Validate if a location is accessible in a screenshot.
@@ -641,7 +663,8 @@ async def validate_location(
                         "reference_region": region_to_dict(region),
                         "calculated_location": {"x": actual_x, "y": actual_y},
                         "within_bounds": (
-                            0 <= actual_x < screenshot_width and 0 <= actual_y < screenshot_height
+                            0 <= actual_x < screenshot_width
+                            and 0 <= actual_y < screenshot_height
                         ),
                     }
 
@@ -656,7 +679,8 @@ async def validate_location(
                 "valid": True,
                 "absolute_location": {"x": location_x, "y": location_y},
                 "within_bounds": (
-                    0 <= location_x < screenshot_width and 0 <= location_y < screenshot_height
+                    0 <= location_x < screenshot_width
+                    and 0 <= location_y < screenshot_height
                 ),
             }
 
@@ -756,7 +780,9 @@ async def detect_current_states(session_id: str, similarity: float = 0.8):
     detection_result = await detect_states(detection_request)
 
     # Update active states
-    session.active_states = [ds["state_id"] for ds in detection_result["detected_states"]]
+    session.active_states = [
+        ds["state_id"] for ds in detection_result["detected_states"]
+    ]
 
     # Add to execution history
     session.execution_history.append(
@@ -894,7 +920,10 @@ async def add_action_snapshots(session_id: str, snapshots: list[dict[str, Any]])
 @app.post("/mock/execute_action/{session_id}")
 @limiter.limit("120/minute")
 async def execute_mock_action(
-    request: Request, session_id: str, action_type: str, action_config: dict[str, Any] | None = None
+    request: Request,
+    session_id: str,
+    action_type: str,
+    action_config: dict[str, Any] | None = None,
 ):
     """Execute an action using snapshots (integration testing)"""
     session = get_session(session_id)
@@ -970,7 +999,9 @@ def _find_matching_snapshot(
 
     # Try overlapping active states
     overlap_matches = [
-        s for s in candidates if any(state in active_states for state in s.get("activeStates", []))
+        s
+        for s in candidates
+        if any(state in active_states for state in s.get("activeStates", []))
     ]
 
     if overlap_matches:
@@ -1027,7 +1058,9 @@ async def register_states(states: list[dict[str, Any]]):
         import traceback
 
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"State registration failed: {str(e)}") from e
+        raise HTTPException(
+            status_code=500, detail=f"State registration failed: {str(e)}"
+        ) from e
 
 
 @app.get("/states/active")
@@ -1044,7 +1077,9 @@ async def set_active_states(request: ActiveStatesRequest):
     state_manager.reset()
 
     # Activate requested states by name (qontinui uses names, not IDs)
-    for state_name in request.state_ids:  # Despite the field name, we'll treat these as names
+    for (
+        state_name
+    ) in request.state_ids:  # Despite the field name, we'll treat these as names
         state_manager.activate_state(state_name, evidence_score=1.0)
 
     return {
@@ -1071,7 +1106,10 @@ async def deactivate_state(state_id: str):
     """Deactivate a single state"""
     # Use state name for deactivation (qontinui uses names)
     state_manager.deactivate_state(state_id)
-    return {"state_id": state_id, "deactivated": state_id not in state_manager.active_states}
+    return {
+        "state_id": state_id,
+        "deactivated": state_id not in state_manager.active_states,
+    }
 
 
 @app.get("/states/transitions")
@@ -1084,7 +1122,9 @@ async def get_possible_transitions():
                 "from_state": t.from_state,
                 "to_state": t.to_state,
                 "action_type": (
-                    t.action_type.value if hasattr(t.action_type, "value") else str(t.action_type)
+                    t.action_type.value
+                    if hasattr(t.action_type, "value")
+                    else str(t.action_type)
                 ),
                 "conditions": t.conditions,
             }
@@ -1148,7 +1188,9 @@ async def test_pattern_matching(request: FindRequest):
         import os
         import tempfile
 
-        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as screenshot_file:
+        with tempfile.NamedTemporaryFile(
+            suffix=".png", delete=False
+        ) as screenshot_file:
             screenshot_file.write(screenshot_bytes)
             screenshot_path = screenshot_file.name
 
@@ -1269,7 +1311,11 @@ async def execute_workflow(request: WorkflowExecutionRequest):
     - Uses real pattern matching on provided screenshots
     - Actions that don't require GUI interaction are mocked
     """
-    from qontinui.config.execution_mode import ExecutionModeConfig, MockMode, set_execution_mode
+    from qontinui.config.execution_mode import (
+        ExecutionModeConfig,
+        MockMode,
+        set_execution_mode,
+    )
 
     # Set execution mode based on request
     if request.mode == "full_mock":
@@ -1401,7 +1447,9 @@ async def execute_workflow_step(session_id: str, action: ConfigAction):
                 result = await find_image(request_data)
                 success = result["found"]
                 if success:
-                    message = f"Found at ({result['region']['x']}, {result['region']['y']})"
+                    message = (
+                        f"Found at ({result['region']['x']}, {result['region']['y']})"
+                    )
                 else:
                     message = "Pattern not found"
             except Exception as e:
@@ -1468,13 +1516,17 @@ async def get_workflow_status(session_id: str):
 
     # Calculate status
     total_actions = len(session.execution_history)
-    successful_actions = sum(1 for r in session.execution_history if r.get("success", False))
+    successful_actions = sum(
+        1 for r in session.execution_history if r.get("success", False)
+    )
 
     return {
         "session_id": session_id,
         "total_actions": total_actions,
         "successful_actions": successful_actions,
-        "success_rate": (successful_actions / total_actions * 100) if total_actions > 0 else 0,
+        "success_rate": (
+            (successful_actions / total_actions * 100) if total_actions > 0 else 0
+        ),
         "active_states": session.active_states,
         "current_screenshot": session.current_screenshot_index,
         "history": session.execution_history,
@@ -1492,14 +1544,18 @@ async def complete_workflow(session_id: str):
 
     # Calculate final results
     total_actions = len(session.execution_history)
-    successful_actions = sum(1 for r in session.execution_history if r.get("success", False))
+    successful_actions = sum(
+        1 for r in session.execution_history if r.get("success", False)
+    )
 
     result = {
         "session_id": session_id,
         "status": "completed" if successful_actions == total_actions else "failed",
         "total_actions": total_actions,
         "successful_actions": successful_actions,
-        "success_rate": (successful_actions / total_actions * 100) if total_actions > 0 else 0,
+        "success_rate": (
+            (successful_actions / total_actions * 100) if total_actions > 0 else 0
+        ),
         "execution_history": session.execution_history,
     }
 
@@ -1579,11 +1635,17 @@ async def optimize_pattern(request: PatternOptimizationRequest):
                     screenshot_j_img = PILImage.open(io.BytesIO(screenshot_j_data))
 
                     # Convert to numpy arrays for OpenCV
-                    pattern_np = cv2.cvtColor(np.array(pattern_i_img), cv2.COLOR_RGB2BGR)
-                    screenshot_np = cv2.cvtColor(np.array(screenshot_j_img), cv2.COLOR_RGB2BGR)
+                    pattern_np = cv2.cvtColor(
+                        np.array(pattern_i_img), cv2.COLOR_RGB2BGR
+                    )
+                    screenshot_np = cv2.cvtColor(
+                        np.array(screenshot_j_img), cv2.COLOR_RGB2BGR
+                    )
 
                     # Perform template matching
-                    result = cv2.matchTemplate(screenshot_np, pattern_np, cv2.TM_CCOEFF_NORMED)
+                    result = cv2.matchTemplate(
+                        screenshot_np, pattern_np, cv2.TM_CCOEFF_NORMED
+                    )
                     min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
 
                     similarity_matrix[i][j] = max_val
@@ -1599,7 +1661,9 @@ async def optimize_pattern(request: PatternOptimizationRequest):
         # Find outliers (patterns with mean similarity < 0.7)
         outliers = []
         for i in range(num_patterns):
-            row_mean = (np.sum(similarity_matrix[i, :]) - 1) / (num_patterns - 1)  # Exclude self
+            row_mean = (np.sum(similarity_matrix[i, :]) - 1) / (
+                num_patterns - 1
+            )  # Exclude self
             if row_mean < 0.7:
                 outliers.append(i)
 
@@ -1625,7 +1689,9 @@ async def optimize_pattern(request: PatternOptimizationRequest):
         return results
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Pattern optimization failed: {str(e)}") from e
+        raise HTTPException(
+            status_code=500, detail=f"Pattern optimization failed: {str(e)}"
+        ) from e
 
 
 async def evaluate_strategy(
@@ -1666,7 +1732,9 @@ async def evaluate_strategy(
             for screenshot_b64 in positive_screenshots:
                 screenshot_data = base64.b64decode(screenshot_b64)
                 screenshot_img = PILImage.open(io.BytesIO(screenshot_data))
-                screenshot_np = cv2.cvtColor(np.array(screenshot_img), cv2.COLOR_RGB2BGR)
+                screenshot_np = cv2.cvtColor(
+                    np.array(screenshot_img), cv2.COLOR_RGB2BGR
+                )
 
                 best_score = 0
                 for pattern in patterns:
@@ -1674,7 +1742,9 @@ async def evaluate_strategy(
                     pattern_img = PILImage.open(io.BytesIO(pattern_data))
                     pattern_np = cv2.cvtColor(np.array(pattern_img), cv2.COLOR_RGB2BGR)
 
-                    result = cv2.matchTemplate(screenshot_np, pattern_np, cv2.TM_CCOEFF_NORMED)
+                    result = cv2.matchTemplate(
+                        screenshot_np, pattern_np, cv2.TM_CCOEFF_NORMED
+                    )
                     min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
                     best_score = max(best_score, float(max_val))  # type: ignore[assignment]
 
@@ -1686,7 +1756,9 @@ async def evaluate_strategy(
             for screenshot_b64 in negative_screenshots:
                 screenshot_data = base64.b64decode(screenshot_b64)
                 screenshot_img = PILImage.open(io.BytesIO(screenshot_data))
-                screenshot_np = cv2.cvtColor(np.array(screenshot_img), cv2.COLOR_RGB2BGR)
+                screenshot_np = cv2.cvtColor(
+                    np.array(screenshot_img), cv2.COLOR_RGB2BGR
+                )
 
                 best_score = 0
                 for pattern in patterns:
@@ -1694,7 +1766,9 @@ async def evaluate_strategy(
                     pattern_img = PILImage.open(io.BytesIO(pattern_data))
                     pattern_np = cv2.cvtColor(np.array(pattern_img), cv2.COLOR_RGB2BGR)
 
-                    result = cv2.matchTemplate(screenshot_np, pattern_np, cv2.TM_CCOEFF_NORMED)
+                    result = cv2.matchTemplate(
+                        screenshot_np, pattern_np, cv2.TM_CCOEFF_NORMED
+                    )
                     min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
                     best_score = max(best_score, float(max_val))  # type: ignore[assignment]
 
@@ -1702,10 +1776,14 @@ async def evaluate_strategy(
                     false_positives += 1
 
             evaluation["performance"]["truePositiveRate"] = (
-                true_positives / len(positive_screenshots) if positive_screenshots else 0
+                true_positives / len(positive_screenshots)
+                if positive_screenshots
+                else 0
             )
             evaluation["performance"]["falsePositiveRate"] = (
-                false_positives / len(negative_screenshots) if negative_screenshots else 0
+                false_positives / len(negative_screenshots)
+                if negative_screenshots
+                else 0
             )
             evaluation["performance"]["averageConfidence"] = (
                 np.mean(confidences) if confidences else 0
@@ -1732,9 +1810,13 @@ async def evaluate_strategy(
             for screenshot_b64 in positive_screenshots:
                 screenshot_data = base64.b64decode(screenshot_b64)
                 screenshot_img = PILImage.open(io.BytesIO(screenshot_data))
-                screenshot_np = cv2.cvtColor(np.array(screenshot_img), cv2.COLOR_RGB2BGR)
+                screenshot_np = cv2.cvtColor(
+                    np.array(screenshot_img), cv2.COLOR_RGB2BGR
+                )
 
-                result = cv2.matchTemplate(screenshot_np, pattern_np, cv2.TM_CCOEFF_NORMED)
+                result = cv2.matchTemplate(
+                    screenshot_np, pattern_np, cv2.TM_CCOEFF_NORMED
+                )
                 min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
 
                 confidences.append(float(max_val))  # type: ignore[arg-type]
@@ -1742,12 +1824,16 @@ async def evaluate_strategy(
                     true_positives += 1
 
             evaluation["performance"]["truePositiveRate"] = (
-                true_positives / len(positive_screenshots) if positive_screenshots else 0
+                true_positives / len(positive_screenshots)
+                if positive_screenshots
+                else 0
             )
             evaluation["performance"]["averageConfidence"] = (
                 np.mean(confidences) if confidences else 0
             )
-            evaluation["strategy"]["parameters"]["selectedPatternIndex"] = int(best_pattern_idx)
+            evaluation["strategy"]["parameters"]["selectedPatternIndex"] = int(
+                best_pattern_idx
+            )
 
         elif strategy_type == "feature-based":
             # Use ORB feature matching for more robust matching
@@ -1789,7 +1875,9 @@ async def evaluate_strategy(
 
     except Exception as e:
         print(f"Strategy evaluation error for {strategy_type}: {e}")
-        evaluation["recommendations"]["improvements"].append(f"Evaluation error: {str(e)}")
+        evaluation["recommendations"]["improvements"].append(
+            f"Evaluation error: {str(e)}"
+        )
 
     return evaluation
 
@@ -1824,7 +1912,9 @@ async def create_state_image(request: CreateStateImageRequest):
             "success": True,
             "stateImage": {
                 "name": request.name,
-                "patterns": [{"id": p["id"], "region": p.get("region")} for p in request.patterns],
+                "patterns": [
+                    {"id": p["id"], "region": p.get("region")} for p in request.patterns
+                ],
                 "strategy": request.strategy_type,
                 "similarity_threshold": request.similarity_threshold,
                 "pattern_count": len(patterns),
@@ -1833,7 +1923,9 @@ async def create_state_image(request: CreateStateImageRequest):
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to create StateImage: {str(e)}") from e
+        raise HTTPException(
+            status_code=500, detail=f"Failed to create StateImage: {str(e)}"
+        ) from e
 
 
 @app.get("/health")

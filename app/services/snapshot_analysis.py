@@ -52,7 +52,9 @@ class SnapshotAnalysisService:
             raise ValueError(f"Snapshot run {run_id} not found")
 
         # Get all actions for this snapshot
-        actions = self.db.query(SnapshotAction).filter_by(snapshot_run_id=snapshot.id).all()
+        actions = (
+            self.db.query(SnapshotAction).filter_by(snapshot_run_id=snapshot.id).all()
+        )
 
         unique_states: set[str] = set()
         state_frequencies: dict[str, int] = defaultdict(int)
@@ -95,7 +97,9 @@ class SnapshotAnalysisService:
         if not snapshot:
             raise ValueError(f"Snapshot run {run_id} not found")
 
-        actions = self.db.query(SnapshotAction).filter_by(snapshot_run_id=snapshot.id).all()
+        actions = (
+            self.db.query(SnapshotAction).filter_by(snapshot_run_id=snapshot.id).all()
+        )
 
         type_counts: dict[str, int] = defaultdict(int)
         type_successes: dict[str, int] = defaultdict(int)

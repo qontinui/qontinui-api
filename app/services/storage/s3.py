@@ -64,7 +64,11 @@ class S3StorageBackend(StorageBackendInterface):
         return session.client("s3", **self.client_kwargs)
 
     async def store_video(
-        self, session_id: str, video_data: BinaryIO, filename: str, content_type: str = "video/mp4"
+        self,
+        session_id: str,
+        video_data: BinaryIO,
+        filename: str,
+        content_type: str = "video/mp4",
     ) -> StoredFile:
         """Store a video file in S3."""
         relative_path = self._generate_video_path(session_id, filename)
@@ -76,7 +80,10 @@ class S3StorageBackend(StorageBackendInterface):
 
         async with await self._get_client() as client:
             await client.put_object(
-                Bucket=self.bucket_name, Key=s3_key, Body=video_bytes, ContentType=content_type
+                Bucket=self.bucket_name,
+                Key=s3_key,
+                Body=video_bytes,
+                ContentType=content_type,
             )
 
             # Get the object info
@@ -103,10 +110,15 @@ class S3StorageBackend(StorageBackendInterface):
 
         async with await self._get_client() as client:
             await client.put_object(
-                Bucket=self.bucket_name, Key=s3_key, Body=frame_data, ContentType=content_type
+                Bucket=self.bucket_name,
+                Key=s3_key,
+                Body=frame_data,
+                ContentType=content_type,
             )
 
-        return StoredFile(path=relative_path, size_bytes=len(frame_data), content_type=content_type)
+        return StoredFile(
+            path=relative_path, size_bytes=len(frame_data), content_type=content_type
+        )
 
     async def get_video_path(self, session_id: str, filename: str) -> str:
         """Get the S3 key for a video file."""
@@ -156,7 +168,9 @@ class S3StorageBackend(StorageBackendInterface):
             paginator = client.get_paginator("list_objects_v2")
             objects_to_delete = []
 
-            async for page in paginator.paginate(Bucket=self.bucket_name, Prefix=prefix):
+            async for page in paginator.paginate(
+                Bucket=self.bucket_name, Prefix=prefix
+            ):
                 if "Contents" in page:
                     for obj in page["Contents"]:
                         objects_to_delete.append({"Key": obj["Key"]})
@@ -226,7 +240,9 @@ class S3StorageBackend(StorageBackendInterface):
                 if "CommonPrefixes" in page:
                     for common_prefix in page["CommonPrefixes"]:
                         # Extract session ID from prefix
-                        session_id = common_prefix["Prefix"].replace(prefix, "").rstrip("/")
+                        session_id = (
+                            common_prefix["Prefix"].replace(prefix, "").rstrip("/")
+                        )
                         sessions.add(session_id)
 
         return list(sessions)

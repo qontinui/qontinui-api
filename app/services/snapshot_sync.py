@@ -13,7 +13,12 @@ from app.models.config_schemas import (
     validate_pattern_metadata,
     validate_snapshot_metadata,
 )
-from app.models.snapshot import SnapshotAction, SnapshotMatch, SnapshotPattern, SnapshotRun
+from app.models.snapshot import (
+    SnapshotAction,
+    SnapshotMatch,
+    SnapshotPattern,
+    SnapshotRun,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -67,7 +72,9 @@ class SnapshotSyncService:
 
         # Validate metadata using Pydantic schema
         try:
-            metadata_validated = validate_snapshot_metadata(metadata_raw, str(metadata_file))
+            metadata_validated = validate_snapshot_metadata(
+                metadata_raw, str(metadata_file)
+            )
         except ValidationError as e:
             raise ValueError(f"Invalid metadata.json: {e}") from e
 
@@ -83,7 +90,9 @@ class SnapshotSyncService:
         # Parse timestamps
         start_time = datetime.fromisoformat(metadata["start_time"])
         end_time = (
-            datetime.fromisoformat(metadata["end_time"]) if metadata.get("end_time") else None
+            datetime.fromisoformat(metadata["end_time"])
+            if metadata.get("end_time")
+            else None
         )
 
         # Calculate statistics from metadata
@@ -139,7 +148,9 @@ class SnapshotSyncService:
         for idx, action_data_raw in enumerate(actions_raw):
             # Validate action log item using Pydantic schema
             try:
-                action_validated = validate_action_log_item(action_data_raw, str(action_log_file))
+                action_validated = validate_action_log_item(
+                    action_data_raw, str(action_log_file)
+                )
             except ValidationError as e:
                 # Log validation error but continue processing other actions
                 logger.warning(
@@ -200,7 +211,9 @@ class SnapshotSyncService:
                 )
             except ValidationError as e:
                 # Log validation error but continue processing other patterns
-                logger.warning(f"Skipping invalid pattern metadata for {pattern_id}: {e}")
+                logger.warning(
+                    f"Skipping invalid pattern metadata for {pattern_id}: {e}"
+                )
                 continue
 
             # Use validated data
@@ -267,11 +280,15 @@ class SnapshotSyncService:
             if record_timestamp and actions:
                 # Parse the timestamp from the history record
                 try:
-                    record_dt = datetime.fromisoformat(record_timestamp.replace("Z", "+00:00"))
+                    record_dt = datetime.fromisoformat(
+                        record_timestamp.replace("Z", "+00:00")
+                    )
                     # Find action with closest timestamp (within 1 second tolerance)
                     for action in actions:
                         if action.timestamp:
-                            time_diff = abs((action.timestamp - record_dt).total_seconds())
+                            time_diff = abs(
+                                (action.timestamp - record_dt).total_seconds()
+                            )
                             if time_diff < 1.0:  # 1 second tolerance
                                 linked_action_id = action.id
                                 break

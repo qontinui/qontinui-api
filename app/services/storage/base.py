@@ -27,7 +27,11 @@ class StorageBackendInterface(ABC):
 
     @abstractmethod
     async def store_video(
-        self, session_id: str, video_data: BinaryIO, filename: str, content_type: str = "video/mp4"
+        self,
+        session_id: str,
+        video_data: BinaryIO,
+        filename: str,
+        content_type: str = "video/mp4",
     ) -> StoredFile:
         """Store a video file.
 

@@ -1,5 +1,16 @@
 """SQLAlchemy models for video capture and historical data.
 
+TODO: DEPRECATED - These models have been migrated to qontinui-web/backend.
+This file should be removed once all qontinui-api code is updated to use
+the backend database directly.
+
+Migration status:
+- ✅ Models copied to qontinui-web/backend/app/models/capture.py
+- ✅ Table names updated to avoid conflicts (VideoCaptureSession instead of CaptureSession)
+- ✅ Alembic migration created in backend
+- ⏳ Pending: Update qontinui-api routes to use backend database
+- ⏳ Pending: Remove this file
+
 This module defines the schema for storing:
 - Video capture sessions with metadata
 - Input events (mouse, keyboard) as time-series data
@@ -109,21 +120,32 @@ class CaptureSession(Base):
 
     # Association with snapshot run (automation results)
     snapshot_run_id = Column(
-        Integer, ForeignKey("snapshot_runs.id", ondelete="SET NULL"), nullable=True, index=True
+        Integer,
+        ForeignKey("snapshot_runs.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
     )
 
     # Association with workflow
     workflow_id = Column(
-        Integer, ForeignKey("workflows.id", ondelete="SET NULL"), nullable=True, index=True
+        Integer,
+        ForeignKey("workflows.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
     )
 
     # Association with project
     project_id = Column(
-        Integer, ForeignKey("projects.id", ondelete="SET NULL"), nullable=True, index=True
+        Integer,
+        ForeignKey("projects.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
     )
 
     # User who created the session
-    created_by = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_by = Column(
+        Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
 
     # Session status
     is_complete = Column(Boolean, nullable=False, default=False)
@@ -136,7 +158,9 @@ class CaptureSession(Base):
 
     # Audit timestamps
     created_at = Column(DateTime, nullable=False, default=func.now())
-    updated_at = Column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
+    updated_at = Column(
+        DateTime, nullable=False, default=func.now(), onupdate=func.now()
+    )
 
     # Relationships
     input_events = relationship(
@@ -146,7 +170,10 @@ class CaptureSession(Base):
         lazy="dynamic",  # For efficient querying of large event sets
     )
     frame_index = relationship(
-        "FrameIndex", back_populates="capture_session", cascade="all, delete-orphan", lazy="dynamic"
+        "FrameIndex",
+        back_populates="capture_session",
+        cascade="all, delete-orphan",
+        lazy="dynamic",
     )
     action_frames = relationship(
         "ActionFrame", back_populates="capture_session", cascade="all, delete-orphan"
@@ -179,7 +206,10 @@ class InputEvent(Base):
 
     # Foreign key to capture session
     capture_session_id = Column(
-        Integer, ForeignKey("capture_sessions.id", ondelete="CASCADE"), nullable=False, index=True
+        Integer,
+        ForeignKey("capture_sessions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
 
     # Timestamp (milliseconds from session start)
@@ -217,7 +247,9 @@ class InputEvent(Base):
     capture_session = relationship("CaptureSession", back_populates="input_events")
 
     __table_args__ = (
-        Index("idx_input_events_session_timestamp", "capture_session_id", "timestamp_ms"),
+        Index(
+            "idx_input_events_session_timestamp", "capture_session_id", "timestamp_ms"
+        ),
         Index("idx_input_events_type", "event_type"),
     )
 
@@ -244,12 +276,17 @@ class FrameIndex(Base):
 
     # Foreign key to capture session
     capture_session_id = Column(
-        Integer, ForeignKey("capture_sessions.id", ondelete="CASCADE"), nullable=False, index=True
+        Integer,
+        ForeignKey("capture_sessions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
 
     # Frame information
     frame_number = Column(Integer, nullable=False)
-    timestamp_ms = Column(BigInteger, nullable=False, index=True)  # Milliseconds from start
+    timestamp_ms = Column(
+        BigInteger, nullable=False, index=True
+    )  # Milliseconds from start
 
     # Video seeking information
     byte_offset = Column(BigInteger, nullable=True)  # Byte position in video file
@@ -262,10 +299,14 @@ class FrameIndex(Base):
     capture_session = relationship("CaptureSession", back_populates="frame_index")
 
     __table_args__ = (
-        Index("idx_frame_index_session_timestamp", "capture_session_id", "timestamp_ms"),
+        Index(
+            "idx_frame_index_session_timestamp", "capture_session_id", "timestamp_ms"
+        ),
         Index("idx_frame_index_session_frame", "capture_session_id", "frame_number"),
         Index("idx_frame_index_keyframes", "capture_session_id", "is_keyframe"),
-        UniqueConstraint("capture_session_id", "frame_number", name="uq_frame_index_session_frame"),
+        UniqueConstraint(
+            "capture_session_id", "frame_number", name="uq_frame_index_session_frame"
+        ),
     )
 
     def __repr__(self) -> str:
@@ -292,10 +333,16 @@ class ActionFrame(Base):
 
     # Foreign keys
     capture_session_id = Column(
-        Integer, ForeignKey("capture_sessions.id", ondelete="CASCADE"), nullable=False, index=True
+        Integer,
+        ForeignKey("capture_sessions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     snapshot_action_id = Column(
-        Integer, ForeignKey("snapshot_actions.id", ondelete="CASCADE"), nullable=False, index=True
+        Integer,
+        ForeignKey("snapshot_actions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
 
     # Frame timing
@@ -329,7 +376,9 @@ class ActionFrame(Base):
     )
 
     def __repr__(self) -> str:
-        return f"<ActionFrame(action={self.snapshot_action_id}, type={self.frame_type})>"
+        return (
+            f"<ActionFrame(action={self.snapshot_action_id}, type={self.frame_type})>"
+        )
 
 
 class HistoricalResult(Base):
@@ -354,13 +403,22 @@ class HistoricalResult(Base):
 
     # Source references
     snapshot_run_id = Column(
-        Integer, ForeignKey("snapshot_runs.id", ondelete="CASCADE"), nullable=False, index=True
+        Integer,
+        ForeignKey("snapshot_runs.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     snapshot_action_id = Column(
-        Integer, ForeignKey("snapshot_actions.id", ondelete="CASCADE"), nullable=False, index=True
+        Integer,
+        ForeignKey("snapshot_actions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     capture_session_id = Column(
-        Integer, ForeignKey("capture_sessions.id", ondelete="SET NULL"), nullable=True, index=True
+        Integer,
+        ForeignKey("capture_sessions.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
     )
 
     # Denormalized query fields (for efficient selection)
@@ -390,10 +448,16 @@ class HistoricalResult(Base):
 
     # Workflow/project context
     workflow_id = Column(
-        Integer, ForeignKey("workflows.id", ondelete="SET NULL"), nullable=True, index=True
+        Integer,
+        ForeignKey("workflows.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
     )
     project_id = Column(
-        Integer, ForeignKey("projects.id", ondelete="SET NULL"), nullable=True, index=True
+        Integer,
+        ForeignKey("projects.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
     )
 
     # Timestamps
@@ -407,10 +471,14 @@ class HistoricalResult(Base):
         Index("idx_historical_workflow_pattern", "workflow_id", "pattern_id"),
         Index("idx_historical_project_pattern", "project_id", "pattern_id"),
         # For random selection within a context
-        Index("idx_historical_selection", "pattern_id", "action_type", "success", "recorded_at"),
+        Index(
+            "idx_historical_selection",
+            "pattern_id",
+            "action_type",
+            "success",
+            "recorded_at",
+        ),
     )
 
     def __repr__(self) -> str:
-        return (
-            f"<HistoricalResult(id={self.id}, pattern={self.pattern_id}, type={self.action_type})>"
-        )
+        return f"<HistoricalResult(id={self.id}, pattern={self.pattern_id}, type={self.action_type})>"

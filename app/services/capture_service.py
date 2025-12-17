@@ -23,7 +23,11 @@ from app.models.capture import (
     StorageBackend,
 )
 from app.models.snapshot import SnapshotAction, SnapshotRun
-from app.services.storage import FrameExtractor, StorageBackendInterface, get_default_storage
+from app.services.storage import (
+    FrameExtractor,
+    StorageBackendInterface,
+    get_default_storage,
+)
 
 
 class CaptureService:
@@ -124,7 +128,9 @@ class CaptureService:
             raise ValueError(f"Session not found: {session_id}")
 
         # Store video
-        stored_file = await self.storage.store_video(session_id, video_data, video_filename)
+        stored_file = await self.storage.store_video(
+            session_id, video_data, video_filename
+        )
 
         # Update session
         session.ended_at = datetime.utcnow()  # type: ignore[assignment]
@@ -286,7 +292,11 @@ class CaptureService:
             raise ValueError(f"Snapshot run not found: {snapshot_run_id}")
 
         # Get all actions for this run
-        actions = self.db.query(SnapshotAction).filter_by(snapshot_run_id=snapshot_run_id).all()
+        actions = (
+            self.db.query(SnapshotAction)
+            .filter_by(snapshot_run_id=snapshot_run_id)
+            .all()
+        )
 
         count = 0
         for action in actions:
@@ -300,7 +310,11 @@ class CaptureService:
             # Calculate frame timestamp (approximate from action timestamp)
             frame_timestamp_ms = None
             if capture_session_id:
-                session = self.db.query(CaptureSession).filter_by(id=capture_session_id).first()
+                session = (
+                    self.db.query(CaptureSession)
+                    .filter_by(id=capture_session_id)
+                    .first()
+                )
                 if session:
                     # Calculate offset from session start
                     action_time = action.timestamp
@@ -412,7 +426,8 @@ class CaptureService:
             List of matching HistoricalResult objects
         """
         query = self.db.query(HistoricalResult).filter(
-            HistoricalResult.pattern_id == pattern_id, HistoricalResult.action_type == action_type
+            HistoricalResult.pattern_id == pattern_id,
+            HistoricalResult.action_type == action_type,
         )
 
         if active_states:
@@ -436,7 +451,9 @@ class CaptureService:
         Returns:
             Frame image data as bytes, or None if not available
         """
-        result = self.db.query(HistoricalResult).filter_by(id=historical_result_id).first()
+        result = (
+            self.db.query(HistoricalResult).filter_by(id=historical_result_id).first()
+        )
 
         if not result or not result.capture_session_id:
             return None
@@ -453,10 +470,16 @@ class CaptureService:
         )
 
         if action_frame and action_frame.cached_frame_path:
-            return await self.storage.get_frame_data(str(action_frame.cached_frame_path))
+            return await self.storage.get_frame_data(
+                str(action_frame.cached_frame_path)
+            )
 
         # Extract from video
-        session = self.db.query(CaptureSession).filter_by(id=result.capture_session_id).first()
+        session = (
+            self.db.query(CaptureSession)
+            .filter_by(id=result.capture_session_id)
+            .first()
+        )
 
         if not session or not session.video_path:
             return None
@@ -475,7 +498,9 @@ class CaptureService:
 
         return frame_data
 
-    async def get_frames_for_integration_test(self, historical_result_ids: list[int]) -> list[dict]:
+    async def get_frames_for_integration_test(
+        self, historical_result_ids: list[int]
+    ) -> list[dict]:
         """Get frames for a sequence of integration test results.
 
         Args:
