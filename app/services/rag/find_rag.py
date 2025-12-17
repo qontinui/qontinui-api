@@ -26,11 +26,7 @@ from typing import Any
 import numpy as np
 from PIL import Image
 
-from qontinui.rag import (
-    QdrantLocalDB,
-    RAGIndex,
-    SegmentVectorizer,
-)
+from qontinui.rag import QdrantLocalDB, RAGIndex, SegmentVectorizer
 
 
 def get_rag_dir(project_id: str) -> Path:
@@ -106,9 +102,7 @@ def load_screenshot(
             capture = ScreenCapture()
             monitors = capture.list_monitors()
             if monitor >= len(monitors):
-                raise ValueError(
-                    f"Monitor {monitor} not found. Available: {len(monitors)}"
-                )
+                raise ValueError(f"Monitor {monitor} not found. Available: {len(monitors)}")
             np_image = capture.capture_monitor(monitors[monitor])
             return Image.fromarray(np_image)
         except ImportError:
@@ -151,8 +145,7 @@ async def find_elements(
         # Validate database exists
         if not db_path.exists():
             raise FileNotFoundError(
-                f"Embeddings database not found: {db_path}. "
-                f"Please generate embeddings first."
+                f"Embeddings database not found: {db_path}. " f"Please generate embeddings first."
             )
 
         log_progress("Initializing segment vectorizer...")
@@ -205,17 +198,13 @@ async def find_elements(
             mask_img = Image.fromarray((segment.mask * 255).astype(np.uint8))
             mask_buffer = io.BytesIO()
             mask_img.save(mask_buffer, format="PNG")
-            segment_info["mask_base64"] = base64.b64encode(
-                mask_buffer.getvalue()
-            ).decode()
+            segment_info["mask_base64"] = base64.b64encode(mask_buffer.getvalue()).decode()
 
             # Extract segment image for visualization
             segment_img = screenshot.crop((x, y, x + w, y + h))
             img_buffer = io.BytesIO()
             segment_img.save(img_buffer, format="PNG")
-            segment_info["image_base64"] = base64.b64encode(
-                img_buffer.getvalue()
-            ).decode()
+            segment_info["image_base64"] = base64.b64encode(img_buffer.getvalue()).decode()
 
             # Match against all indexed elements
             for element in all_elements:
@@ -254,9 +243,7 @@ async def find_elements(
                     "visual_similarity": float(visual_sim),
                     "text_similarity": float(text_sim) if text_sim else None,
                     "combined_score": float(combined_score),
-                    "element_type": (
-                        element.element_type.value if element.element_type else None
-                    ),
+                    "element_type": (element.element_type.value if element.element_type else None),
                     "text_description": element.text_description or "",
                     "state_id": element.state_id,
                 }

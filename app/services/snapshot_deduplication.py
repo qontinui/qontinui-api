@@ -177,9 +177,7 @@ class SnapshotDeduplicationService:
                                 "run_id": run_id,
                                 "start_time": snapshot.start_time.isoformat(),
                                 "total_actions": snapshot.total_actions,
-                                "duration_seconds": float(
-                                    snapshot.duration_seconds or 0
-                                ),
+                                "duration_seconds": float(snapshot.duration_seconds or 0),
                                 "is_marked_duplicate": is_marked,
                                 "priority": snapshot.priority,
                             }
@@ -215,11 +213,7 @@ class SnapshotDeduplicationService:
 
         for group in duplicate_groups:
             all_run_ids = [group.representative_run_id] + group.duplicate_run_ids
-            snapshots = (
-                self.db.query(SnapshotRun)
-                .filter(SnapshotRun.run_id.in_(all_run_ids))
-                .all()
-            )
+            snapshots = self.db.query(SnapshotRun).filter(SnapshotRun.run_id.in_(all_run_ids)).all()
 
             # Choose which to keep based on strategy
             if keep_strategy == "recent":
@@ -298,9 +292,7 @@ class SnapshotDeduplicationService:
 
         return similarity_matrix
 
-    def _calculate_screenshot_similarity(
-        self, snap1: SnapshotRun, snap2: SnapshotRun
-    ) -> float:
+    def _calculate_screenshot_similarity(self, snap1: SnapshotRun, snap2: SnapshotRun) -> float:
         """
         Calculate screenshot similarity between two runs.
 
@@ -437,9 +429,7 @@ class SnapshotDeduplicationService:
         total_bytes = 0
 
         for run_info in delete_runs:
-            snapshot = (
-                self.db.query(SnapshotRun).filter_by(run_id=run_info["run_id"]).first()
-            )
+            snapshot = self.db.query(SnapshotRun).filter_by(run_id=run_info["run_id"]).first()
             if snapshot:
                 # Estimate based on screenshot count (assume ~100KB per screenshot)
                 estimated_bytes = snapshot.total_screenshots * 100 * 1024

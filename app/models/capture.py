@@ -143,9 +143,7 @@ class CaptureSession(Base):
     )
 
     # User who created the session
-    created_by = Column(
-        Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
-    )
+    created_by = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
 
     # Session status
     is_complete = Column(Boolean, nullable=False, default=False)
@@ -158,9 +156,7 @@ class CaptureSession(Base):
 
     # Audit timestamps
     created_at = Column(DateTime, nullable=False, default=func.now())
-    updated_at = Column(
-        DateTime, nullable=False, default=func.now(), onupdate=func.now()
-    )
+    updated_at = Column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
 
     # Relationships
     input_events = relationship(
@@ -247,9 +243,7 @@ class InputEvent(Base):
     capture_session = relationship("CaptureSession", back_populates="input_events")
 
     __table_args__ = (
-        Index(
-            "idx_input_events_session_timestamp", "capture_session_id", "timestamp_ms"
-        ),
+        Index("idx_input_events_session_timestamp", "capture_session_id", "timestamp_ms"),
         Index("idx_input_events_type", "event_type"),
     )
 
@@ -284,9 +278,7 @@ class FrameIndex(Base):
 
     # Frame information
     frame_number = Column(Integer, nullable=False)
-    timestamp_ms = Column(
-        BigInteger, nullable=False, index=True
-    )  # Milliseconds from start
+    timestamp_ms = Column(BigInteger, nullable=False, index=True)  # Milliseconds from start
 
     # Video seeking information
     byte_offset = Column(BigInteger, nullable=True)  # Byte position in video file
@@ -299,14 +291,10 @@ class FrameIndex(Base):
     capture_session = relationship("CaptureSession", back_populates="frame_index")
 
     __table_args__ = (
-        Index(
-            "idx_frame_index_session_timestamp", "capture_session_id", "timestamp_ms"
-        ),
+        Index("idx_frame_index_session_timestamp", "capture_session_id", "timestamp_ms"),
         Index("idx_frame_index_session_frame", "capture_session_id", "frame_number"),
         Index("idx_frame_index_keyframes", "capture_session_id", "is_keyframe"),
-        UniqueConstraint(
-            "capture_session_id", "frame_number", name="uq_frame_index_session_frame"
-        ),
+        UniqueConstraint("capture_session_id", "frame_number", name="uq_frame_index_session_frame"),
     )
 
     def __repr__(self) -> str:
@@ -376,9 +364,7 @@ class ActionFrame(Base):
     )
 
     def __repr__(self) -> str:
-        return (
-            f"<ActionFrame(action={self.snapshot_action_id}, type={self.frame_type})>"
-        )
+        return f"<ActionFrame(action={self.snapshot_action_id}, type={self.frame_type})>"
 
 
 class HistoricalResult(Base):
@@ -481,4 +467,6 @@ class HistoricalResult(Base):
     )
 
     def __repr__(self) -> str:
-        return f"<HistoricalResult(id={self.id}, pattern={self.pattern_id}, type={self.action_type})>"
+        return (
+            f"<HistoricalResult(id={self.id}, pattern={self.pattern_id}, type={self.action_type})>"
+        )

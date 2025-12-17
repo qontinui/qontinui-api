@@ -9,10 +9,7 @@ from app.services.rag.project_service import ProjectService
 
 if TYPE_CHECKING:
     # Import for type checking only to avoid circular imports
-    from app.routes.rag import (
-        ImportResult,
-        RAGExportData,
-    )
+    from app.routes.rag import ImportResult, RAGExportData
 
 
 class ExportService:
@@ -44,13 +41,10 @@ class ExportService:
         project = self.project_service.get_project(db, project_id)
         rag_config = self.project_service.get_rag_config(project)
 
-        elements = [
-            RAGElement(**elem) for elem in rag_config.get("elements", {}).values()
-        ]
+        elements = [RAGElement(**elem) for elem in rag_config.get("elements", {}).values()]
         states = [RAGState(**state) for state in rag_config.get("states", {}).values()]
         transitions = [
-            RAGTransition(**trans)
-            for trans in rag_config.get("transitions", {}).values()
+            RAGTransition(**trans) for trans in rag_config.get("transitions", {}).values()
         ]
 
         return RAGExportData(
@@ -64,9 +58,7 @@ class ExportService:
             ),
         )
 
-    def import_project(
-        self, db: Session, project_id: str, data: "RAGExportData"
-    ) -> "ImportResult":
+    def import_project(self, db: Session, project_id: str, data: "RAGExportData") -> "ImportResult":
         """Import RAG data into a project.
 
         Args:
@@ -166,10 +158,7 @@ class ExportService:
         # Validate transition references
         state_id_set = set(state_ids)
         for transition in data.transitions:
-            if (
-                transition.from_state_id
-                and transition.from_state_id not in state_id_set
-            ):
+            if transition.from_state_id and transition.from_state_id not in state_id_set:
                 errors.append(
                     f"Transition {transition.id} references missing state: {transition.from_state_id}"
                 )

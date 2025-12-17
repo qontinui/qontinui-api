@@ -337,9 +337,7 @@ class FrameExtractor:
             "height": video_stream.get("height"),
             "fps": fps,
             "codec": video_stream.get("codec_name"),
-            "duration_ms": int(
-                float(probe_data.get("format", {}).get("duration", 0)) * 1000
-            ),
+            "duration_ms": int(float(probe_data.get("format", {}).get("duration", 0)) * 1000),
             "total_frames": int(video_stream.get("nb_frames", 0)) or None,
             "bit_rate": int(video_stream.get("bit_rate", 0)) or None,
         }

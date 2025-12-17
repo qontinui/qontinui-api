@@ -94,9 +94,7 @@ class TransitionService:
 
         return transition
 
-    def get_transition(
-        self, db: Session, project_id: str, transition_id: str
-    ) -> "RAGTransition":
+    def get_transition(self, db: Session, project_id: str, transition_id: str) -> "RAGTransition":
         """Get a single RAG transition by ID.
 
         Args:
@@ -118,9 +116,7 @@ class TransitionService:
 
         transitions = rag_config.get("transitions", {})
         if transition_id not in transitions:
-            raise HTTPException(
-                status_code=404, detail=f"Transition {transition_id} not found"
-            )
+            raise HTTPException(status_code=404, detail=f"Transition {transition_id} not found")
 
         return RAGTransition(**transitions[transition_id])
 
@@ -153,9 +149,7 @@ class TransitionService:
 
         transitions = rag_config.get("transitions", {})
         if transition_id not in transitions:
-            raise HTTPException(
-                status_code=404, detail=f"Transition {transition_id} not found"
-            )
+            raise HTTPException(status_code=404, detail=f"Transition {transition_id} not found")
 
         # Update transition
         trans_data = transitions[transition_id]
@@ -170,9 +164,7 @@ class TransitionService:
 
         return transition
 
-    def delete_transition(
-        self, db: Session, project_id: str, transition_id: str
-    ) -> None:
+    def delete_transition(self, db: Session, project_id: str, transition_id: str) -> None:
         """Delete a RAG transition.
 
         Args:
@@ -188,9 +180,7 @@ class TransitionService:
 
         transitions = rag_config.get("transitions", {})
         if transition_id not in transitions:
-            raise HTTPException(
-                status_code=404, detail=f"Transition {transition_id} not found"
-            )
+            raise HTTPException(status_code=404, detail=f"Transition {transition_id} not found")
 
         del rag_config["transitions"][transition_id]
 

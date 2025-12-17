@@ -127,9 +127,7 @@ def auth_headers():
 class TestSchedulerStatistics:
     """Tests for GET /api/v1/scheduler/statistics/{project_id}"""
 
-    def test_get_statistics_success(
-        self, client, mock_user_data, auth_headers, monkeypatch
-    ):
+    def test_get_statistics_success(self, client, mock_user_data, auth_headers, monkeypatch):
         """Test successful retrieval of scheduler statistics."""
 
         # Mock the load_users function to return our test data
@@ -177,9 +175,7 @@ class TestSchedulerStatistics:
 class TestSchedulerStatus:
     """Tests for GET /api/v1/scheduler/status/{project_id}"""
 
-    def test_get_status_success(
-        self, client, mock_user_data, auth_headers, monkeypatch
-    ):
+    def test_get_status_success(self, client, mock_user_data, auth_headers, monkeypatch):
         """Test successful retrieval of scheduler status."""
 
         def mock_load_users():
@@ -241,9 +237,7 @@ class TestSchedulerStatus:
 class TestExecutionHistory:
     """Tests for GET /api/v1/scheduler/executions/{project_id}"""
 
-    def test_get_executions_success(
-        self, client, mock_user_data, auth_headers, monkeypatch
-    ):
+    def test_get_executions_success(self, client, mock_user_data, auth_headers, monkeypatch):
         """Test successful retrieval of execution history."""
 
         def mock_load_users():
@@ -284,9 +278,7 @@ class TestExecutionHistory:
         for execution in data["executions"]:
             assert execution["scheduleId"] == "schedule-1"
 
-    def test_get_executions_with_limit(
-        self, client, mock_user_data, auth_headers, monkeypatch
-    ):
+    def test_get_executions_with_limit(self, client, mock_user_data, auth_headers, monkeypatch):
         """Test execution history with limit parameter."""
 
         def mock_load_users():
@@ -294,9 +286,7 @@ class TestExecutionHistory:
 
         monkeypatch.setattr("scheduler_api.load_users", mock_load_users)
 
-        response = client.get(
-            "/api/v1/scheduler/executions/1?limit=2", headers=auth_headers
-        )
+        response = client.get("/api/v1/scheduler/executions/1?limit=2", headers=auth_headers)
 
         assert response.status_code == 200
         data = response.json()
@@ -304,9 +294,7 @@ class TestExecutionHistory:
         assert data["returned_count"] <= 2
         assert len(data["executions"]) <= 2
 
-    def test_get_executions_sorted_by_date(
-        self, client, mock_user_data, auth_headers, monkeypatch
-    ):
+    def test_get_executions_sorted_by_date(self, client, mock_user_data, auth_headers, monkeypatch):
         """Test that executions are sorted by most recent first."""
 
         def mock_load_users():
@@ -328,9 +316,7 @@ class TestExecutionHistory:
 class TestScheduleDetails:
     """Tests for GET /api/v1/scheduler/schedule/{project_id}/{schedule_id}"""
 
-    def test_get_schedule_details_success(
-        self, client, mock_user_data, auth_headers, monkeypatch
-    ):
+    def test_get_schedule_details_success(self, client, mock_user_data, auth_headers, monkeypatch):
         """Test successful retrieval of schedule details."""
 
         def mock_load_users():
@@ -338,9 +324,7 @@ class TestScheduleDetails:
 
         monkeypatch.setattr("scheduler_api.load_users", mock_load_users)
 
-        response = client.get(
-            "/api/v1/scheduler/schedule/1/schedule-1", headers=auth_headers
-        )
+        response = client.get("/api/v1/scheduler/schedule/1/schedule-1", headers=auth_headers)
 
         assert response.status_code == 200
         data = response.json()
@@ -389,9 +373,7 @@ class TestScheduleDetails:
 
         monkeypatch.setattr("scheduler_api.load_users", mock_load_users)
 
-        response = client.get(
-            "/api/v1/scheduler/schedule/1/nonexistent", headers=auth_headers
-        )
+        response = client.get("/api/v1/scheduler/schedule/1/nonexistent", headers=auth_headers)
 
         assert response.status_code == 404
 
@@ -405,9 +387,7 @@ class TestScheduleDetails:
 
         monkeypatch.setattr("scheduler_api.load_users", mock_load_users)
 
-        response = client.get(
-            "/api/v1/scheduler/schedule/1/schedule-1", headers=auth_headers
-        )
+        response = client.get("/api/v1/scheduler/schedule/1/schedule-1", headers=auth_headers)
 
         assert response.status_code == 200
         stats = response.json()["statistics"]
@@ -436,13 +416,9 @@ class TestAuthenticationAndAuthorization:
 
         for endpoint in endpoints:
             response = client.get(endpoint)
-            assert (
-                response.status_code == 401
-            ), f"Endpoint {endpoint} should require auth"
+            assert response.status_code == 401, f"Endpoint {endpoint} should require auth"
 
-    def test_user_cannot_access_other_users_projects(
-        self, client, auth_headers, monkeypatch
-    ):
+    def test_user_cannot_access_other_users_projects(self, client, auth_headers, monkeypatch):
         """Test that users can only access their own project data."""
         # This test would require more complex setup to test cross-user access
         # For now, we verify that the endpoint checks project ownership
@@ -454,18 +430,14 @@ class TestErrorHandling:
 
     def test_invalid_project_id(self, client, auth_headers):
         """Test handling of invalid project ID format."""
-        response = client.get(
-            "/api/v1/scheduler/statistics/invalid", headers=auth_headers
-        )
+        response = client.get("/api/v1/scheduler/statistics/invalid", headers=auth_headers)
 
         # Should handle gracefully (404 or 400)
         assert response.status_code in [400, 404]
 
     def test_malformed_query_parameters(self, client, auth_headers):
         """Test handling of malformed query parameters."""
-        response = client.get(
-            "/api/v1/scheduler/executions/1?limit=invalid", headers=auth_headers
-        )
+        response = client.get("/api/v1/scheduler/executions/1?limit=invalid", headers=auth_headers)
 
         # FastAPI should validate and return 422
         assert response.status_code == 422

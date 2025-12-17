@@ -145,9 +145,7 @@ class InferenceEngine:
 
         # Generate colors for each class
         np.random.seed(42)
-        colors = np.random.randint(
-            0, 255, size=(len(self.class_names) + 1, 3), dtype=np.uint8
-        )
+        colors = np.random.randint(0, 255, size=(len(self.class_names) + 1, 3), dtype=np.uint8)
 
         for det in detections:
             bbox = det["bbox"]
@@ -163,15 +161,11 @@ class InferenceEngine:
             cv2.rectangle(viz_image, (x1, y1), (x2, y2), color, 2)
 
             # Draw label
-            class_name = (
-                self.class_names[cls] if cls < len(self.class_names) else f"Class {cls}"
-            )
+            class_name = self.class_names[cls] if cls < len(self.class_names) else f"Class {cls}"
             label = f"{class_name} {conf:.2f}"
 
             # Get text size for background
-            (text_w, text_h), _ = cv2.getTextSize(
-                label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1
-            )
+            (text_w, text_h), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
 
             # Draw label background
             cv2.rectangle(
@@ -216,8 +210,7 @@ class ONNXInferenceEngine(InferenceEngine):
             import onnxruntime as ort
         except ImportError as err:
             raise ImportError(
-                "onnxruntime package not installed. "
-                "Install with: pip install onnxruntime"
+                "onnxruntime package not installed. " "Install with: pip install onnxruntime"
             ) from err
 
         logger.info("Loading ONNX model")
@@ -275,9 +268,7 @@ class ONNXInferenceEngine(InferenceEngine):
 
         return detections
 
-    def postprocess_yolo(
-        self, outputs: np.ndarray, original_shape: tuple[int, int]
-    ) -> list[dict]:
+    def postprocess_yolo(self, outputs: np.ndarray, original_shape: tuple[int, int]) -> list[dict]:
         """
         Postprocess YOLO model outputs.
 
@@ -384,8 +375,7 @@ class ONNXInferenceEngine(InferenceEngine):
                 dets = [
                     det
                     for det in dets
-                    if self.calculate_iou(best["bbox"], det["bbox"])
-                    < self.iou_threshold
+                    if self.calculate_iou(best["bbox"], det["bbox"]) < self.iou_threshold
                 ]
 
             final_detections.extend(keep)
@@ -428,8 +418,7 @@ class YOLOv8InferenceEngine(InferenceEngine):
             from ultralytics import YOLO
         except ImportError as err:
             raise ImportError(
-                "ultralytics package not installed. "
-                "Install with: pip install ultralytics"
+                "ultralytics package not installed. " "Install with: pip install ultralytics"
             ) from err
 
         logger.info("Loading YOLOv8 model")
@@ -561,9 +550,7 @@ class InferenceBenchmark:
 
 def main():
     """Main entry point for inference."""
-    parser = argparse.ArgumentParser(
-        description="Run inference on images with trained models"
-    )
+    parser = argparse.ArgumentParser(description="Run inference on images with trained models")
 
     parser.add_argument(
         "--model",

@@ -43,9 +43,7 @@ class DescriptionService:
             elif element.element_type:
                 # Fallback to element type if no semantic role
                 type_str = (
-                    element.element_subtype
-                    if element.element_subtype
-                    else element.element_type
+                    element.element_subtype if element.element_subtype else element.element_type
                 )
                 base += f" {type_str}"
             else:

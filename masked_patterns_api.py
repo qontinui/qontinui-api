@@ -173,9 +173,7 @@ class MaskedPatternExtractor:
                 weighted_sum += region * weights
                 weight_sum += weights[:, :, 0] if len(weights.shape) == 3 else weights
 
-            weight_sum = np.where(
-                weight_sum == 0, 1, weight_sum
-            )  # Avoid division by zero
+            weight_sum = np.where(weight_sum == 0, 1, weight_sum)  # Avoid division by zero
             if len(weighted_sum.shape) == 3:
                 weight_sum = weight_sum[:, :, np.newaxis]
             averaged_pixels = weighted_sum / weight_sum
@@ -201,9 +199,7 @@ class MaskedPatternExtractor:
         mask_density = active_pixels / total_pixels if total_pixels > 0 else 0
 
         # Calculate confidence statistics
-        masked_confidence = (
-            confidence_map[binary_mask == 1] if active_pixels > 0 else np.array([0])
-        )
+        masked_confidence = confidence_map[binary_mask == 1] if active_pixels > 0 else np.array([0])
 
         return {
             "mask": binary_mask,
@@ -253,8 +249,7 @@ async def extract_masked_pattern(request: ExtractMaskedPatternRequest):
         else:
             # Mock screenshots for demo
             screenshots = [
-                np.random.randint(0, 255, (500, 500, 3), dtype=np.uint8)
-                for _ in range(3)
+                np.random.randint(0, 255, (500, 500, 3), dtype=np.uint8) for _ in range(3)
             ]
 
         # Use provided regions or mock for demo
@@ -412,9 +407,7 @@ async def update_pattern_threshold(pattern_id: str, request: UpdateThresholdRequ
     total_pixels = pattern_data["totalPixels"]
     mask_density = active_pixels / total_pixels if total_pixels > 0 else 0
 
-    masked_confidence = (
-        confidence_map[new_mask == 1] if active_pixels > 0 else np.array([0])
-    )
+    masked_confidence = confidence_map[new_mask == 1] if active_pixels > 0 else np.array([0])
 
     # Update pattern data
     pattern_data.update(
@@ -431,9 +424,7 @@ async def update_pattern_threshold(pattern_id: str, request: UpdateThresholdRequ
         }
     )
 
-    logger.info(
-        f"Updated threshold for pattern {pattern_id} to {request.similarity_threshold}"
-    )
+    logger.info(f"Updated threshold for pattern {pattern_id} to {request.similarity_threshold}")
 
     return {
         "pattern_id": pattern_id,

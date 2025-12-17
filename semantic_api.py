@@ -138,16 +138,12 @@ class RealSemanticProcessor:
             try:
                 # Lazy load EasyOCREngine to avoid NumPy conflicts
                 try:
-                    from qontinui.hal.implementations.easyocr_engine import (
-                        EasyOCREngine,
-                    )
+                    from qontinui.hal.implementations.easyocr_engine import EasyOCREngine
 
                     self.ocr_engine = EasyOCREngine()
                 except ImportError:
                     self.ocr_engine = None
-                    logger.warning(
-                        "EasyOCR not available due to NumPy version conflict"
-                    )
+                    logger.warning("EasyOCR not available due to NumPy version conflict")
 
                 self.segmenter = ScreenSegmenter()
                 self.clip_generator = CLIPDescriptionGenerator()
@@ -158,15 +154,9 @@ class RealSemanticProcessor:
         # Try to initialize CLIP directly if not available through qontinui
         if not self.clip_generator and CLIP_AVAILABLE:
             try:
-                self.clip_model = CLIPModel.from_pretrained(
-                    "openai/clip-vit-base-patch32"
-                )
-                self.clip_processor = CLIPProcessor.from_pretrained(
-                    "openai/clip-vit-base-patch32"
-                )
-                self.device = torch.device(
-                    "cuda" if torch.cuda.is_available() else "cpu"
-                )
+                self.clip_model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
+                self.clip_processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
+                self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
                 self.clip_model = self.clip_model.to(self.device)
                 logger.info("Initialized CLIP model for semantic descriptions")
             except Exception as e:
@@ -256,9 +246,7 @@ class RealSemanticProcessor:
         edges = cv2.Canny(gray, 50, 150)
 
         # Find contours
-        contours, _ = cv2.findContours(
-            edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
-        )
+        contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         # Process significant contours
         for idx, contour in enumerate(contours):
@@ -285,9 +273,7 @@ class RealSemanticProcessor:
             element_type = self._classify_element(w, h, region)
 
             # Generate semantic description
-            position = self._get_position_description(
-                x, y, image.shape[1], image.shape[0]
-            )
+            position = self._get_position_description(x, y, image.shape[1], image.shape[0])
             if options.description_model == "clip":
                 clip_description = self._generate_clip_description(region, element_type)
                 description = f"{clip_description} {position}"
@@ -344,9 +330,7 @@ class RealSemanticProcessor:
 
         return objects
 
-    def _extract_text(
-        self, image: np.ndarray, options: ProcessingOptions
-    ) -> list[SemanticObject]:
+    def _extract_text(self, image: np.ndarray, options: ProcessingOptions) -> list[SemanticObject]:
         """Extract text regions using OCR."""
         objects = []
 
@@ -400,9 +384,7 @@ class RealSemanticProcessor:
         _, thresh = cv2.threshold(morph, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
         # Find contours
-        contours, _ = cv2.findContours(
-            thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
-        )
+        contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         for idx, contour in enumerate(contours):
             x, y, w, h = cv2.boundingRect(contour)
@@ -426,9 +408,7 @@ class RealSemanticProcessor:
 
         return objects
 
-    def _generate_clip_description(
-        self, image_region: np.ndarray, element_type: str
-    ) -> str:
+    def _generate_clip_description(self, image_region: np.ndarray, element_type: str) -> str:
         """Generate semantic description using CLIP."""
         if self.clip_generator:
             # Use qontinui's CLIP generator
@@ -559,15 +539,11 @@ class RealSemanticProcessor:
             return element_type
 
         # Calculate color statistics
-        mean_color = (
-            region.mean(axis=(0, 1))[:3] if len(region.shape) == 3 else [region.mean()]
-        )
+        mean_color = region.mean(axis=(0, 1))[:3] if len(region.shape) == 3 else [region.mean()]
         std_dev = np.std(region)
 
         # Analyze dominant colors for content hints
-        is_blue = (
-            mean_color[2] > mean_color[1] and mean_color[2] > mean_color[0]
-        )  # BGR format
+        is_blue = mean_color[2] > mean_color[1] and mean_color[2] > mean_color[0]  # BGR format
         is_green = mean_color[1] > mean_color[2] and mean_color[1] > mean_color[0]
         is_red = mean_color[0] > mean_color[1] and mean_color[0] > mean_color[2]
         is_grayscale = np.std(mean_color) < 10
@@ -602,11 +578,7 @@ class RealSemanticProcessor:
                 return "interface element"
 
         # Check for text-like patterns (horizontal lines, consistent spacing)
-        gray = (
-            cv2.cvtColor(region, cv2.COLOR_BGR2GRAY)
-            if len(region.shape) == 3
-            else region
-        )
+        gray = cv2.cvtColor(region, cv2.COLOR_BGR2GRAY) if len(region.shape) == 3 else region
         edges = cv2.Canny(gray.astype(np.uint8), 50, 150)
         horizontal_projection = np.sum(edges, axis=1)
 
@@ -640,12 +612,8 @@ class RealSemanticProcessor:
 
     def _get_position_description(self, x: int, y: int, width: int, height: int) -> str:
         """Get position description for an element."""
-        horizontal = (
-            "left" if x < width / 3 else ("right" if x > 2 * width / 3 else "center")
-        )
-        vertical = (
-            "top" if y < height / 3 else ("bottom" if y > 2 * height / 3 else "middle")
-        )
+        horizontal = "left" if x < width / 3 else ("right" if x > 2 * width / 3 else "center")
+        vertical = "top" if y < height / 3 else ("bottom" if y > 2 * height / 3 else "middle")
         return f"in {vertical} {horizontal}"
 
     def _remove_duplicates(self, objects: list[SemanticObject]) -> list[SemanticObject]:
@@ -706,9 +674,7 @@ class RealSemanticProcessor:
         )
 
         # Find contours
-        contours, _ = cv2.findContours(
-            thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
-        )
+        contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         for idx, contour in enumerate(contours):
             area = cv2.contourArea(contour)
@@ -719,12 +685,7 @@ class RealSemanticProcessor:
             x, y, w, h = cv2.boundingRect(contour)
 
             # Skip elements that are too small or too large
-            if (
-                w < 20
-                or h < 20
-                or w > image.shape[1] * 0.95
-                or h > image.shape[0] * 0.95
-            ):
+            if w < 20 or h < 20 or w > image.shape[1] * 0.95 or h > image.shape[0] * 0.95:
                 continue
 
             # Create mask for this contour
@@ -749,15 +710,11 @@ class RealSemanticProcessor:
             element_type = self._classify_element(w, h, region)
 
             # Generate semantic description based on content
-            position = self._get_position_description(
-                x, y, image.shape[1], image.shape[0]
-            )
+            position = self._get_position_description(x, y, image.shape[1], image.shape[0])
 
             # Always try to get content-aware description
             if CLIP_AVAILABLE and self.clip_model:
-                content_description = self._generate_clip_description(
-                    region, element_type
-                )
+                content_description = self._generate_clip_description(region, element_type)
             else:
                 content_description = self._analyze_content_opencv(region, element_type)
 
@@ -807,9 +764,7 @@ if SAM3_AVAILABLE:
         SAM3_AVAILABLE = False
 
 
-def _convert_qontinui_scene_to_api_objects(
-    scene, processor_instance
-) -> list[SemanticObject]:
+def _convert_qontinui_scene_to_api_objects(scene, processor_instance) -> list[SemanticObject]:
     """Convert qontinui SemanticScene to API SemanticObjects.
 
     Args:
@@ -845,9 +800,7 @@ def _convert_qontinui_scene_to_api_objects(
             description=obj.description,
             ocr_text=getattr(obj, "ocr_text", None),
             type=(
-                obj.object_type.value
-                if hasattr(obj.object_type, "value")
-                else str(obj.object_type)
+                obj.object_type.value if hasattr(obj.object_type, "value") else str(obj.object_type)
             ),
             confidence=float(obj.confidence),
             bounding_box=BoundingBox(x=int(x), y=int(y), width=int(w), height=int(h)),
@@ -878,12 +831,8 @@ async def process_screenshot(request: SemanticProcessRequest):
             if SAM3_AVAILABLE and sam3_processor is not None:
                 try:
                     # Use the real SAM3Processor
-                    logger.info(
-                        f"Using SAM3Processor with text_prompt: {request.text_prompt}"
-                    )
-                    scene = sam3_processor.process(
-                        image, text_prompt=request.text_prompt
-                    )
+                    logger.info(f"Using SAM3Processor with text_prompt: {request.text_prompt}")
+                    scene = sam3_processor.process(image, text_prompt=request.text_prompt)
 
                     # Convert qontinui SemanticScene to API SemanticObjects
                     objects = _convert_qontinui_scene_to_api_objects(scene, processor)
@@ -908,14 +857,10 @@ async def process_screenshot(request: SemanticProcessRequest):
                     image, request.options, text_prompt=request.text_prompt
                 )
         else:
-            objects = processor.detect_ui_elements(
-                image, request.options, request.strategy
-            )
+            objects = processor.detect_ui_elements(image, request.options, request.strategy)
 
         # Filter by confidence
-        objects = [
-            obj for obj in objects if obj.confidence >= request.options.min_confidence
-        ]
+        objects = [obj for obj in objects if obj.confidence >= request.options.min_confidence]
 
         # Create scene
         scene = SemanticScene(  # type: ignore[assignment]
@@ -1001,9 +946,7 @@ async def compare_screenshots(request: SemanticCompareRequest):
 
         return SemanticCompareResponse(
             similarity_score=similarity,
-            differences=ComparisonDifference(
-                added=added, removed=removed, changed=changed
-            ),
+            differences=ComparisonDifference(added=added, removed=removed, changed=changed),
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e

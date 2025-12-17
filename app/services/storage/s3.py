@@ -116,9 +116,7 @@ class S3StorageBackend(StorageBackendInterface):
                 ContentType=content_type,
             )
 
-        return StoredFile(
-            path=relative_path, size_bytes=len(frame_data), content_type=content_type
-        )
+        return StoredFile(path=relative_path, size_bytes=len(frame_data), content_type=content_type)
 
     async def get_video_path(self, session_id: str, filename: str) -> str:
         """Get the S3 key for a video file."""
@@ -168,9 +166,7 @@ class S3StorageBackend(StorageBackendInterface):
             paginator = client.get_paginator("list_objects_v2")
             objects_to_delete = []
 
-            async for page in paginator.paginate(
-                Bucket=self.bucket_name, Prefix=prefix
-            ):
+            async for page in paginator.paginate(Bucket=self.bucket_name, Prefix=prefix):
                 if "Contents" in page:
                     for obj in page["Contents"]:
                         objects_to_delete.append({"Key": obj["Key"]})
@@ -240,9 +236,7 @@ class S3StorageBackend(StorageBackendInterface):
                 if "CommonPrefixes" in page:
                     for common_prefix in page["CommonPrefixes"]:
                         # Extract session ID from prefix
-                        session_id = (
-                            common_prefix["Prefix"].replace(prefix, "").rstrip("/")
-                        )
+                        session_id = common_prefix["Prefix"].replace(prefix, "").rstrip("/")
                         sessions.add(session_id)
 
         return list(sessions)

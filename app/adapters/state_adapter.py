@@ -47,11 +47,7 @@ def convert_frontend_state_to_qontinui(frontend_state: dict[str, Any]) -> Qontin
     for img_data in images_list:
         if isinstance(img_data, dict):
             # Get image data from various possible field names
-            base64_str = (
-                img_data.get("image")
-                or img_data.get("data")
-                or img_data.get("imageData")
-            )
+            base64_str = img_data.get("image") or img_data.get("data") or img_data.get("imageData")
 
             if base64_str:
                 try:
@@ -65,9 +61,7 @@ def convert_frontend_state_to_qontinui(frontend_state: dict[str, Any]) -> Qontin
                     qontinui_images.append(image)
                 except Exception as e:
                     # Log error but continue processing other images
-                    print(
-                        f"Warning: Failed to convert image in state '{state_name}': {e}"
-                    )
+                    print(f"Warning: Failed to convert image in state '{state_name}': {e}")
                     continue
 
     # Create State object
@@ -89,9 +83,7 @@ def convert_frontend_state_to_qontinui(frontend_state: dict[str, Any]) -> Qontin
     return state
 
 
-def convert_multiple_states(
-    frontend_states: list[dict[str, Any]]
-) -> list[QontinuiState]:
+def convert_multiple_states(frontend_states: list[dict[str, Any]]) -> list[QontinuiState]:
     """
     Convert list of frontend states to qontinui States.
 

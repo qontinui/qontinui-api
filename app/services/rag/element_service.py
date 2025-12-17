@@ -57,10 +57,7 @@ class ElementService:
                 continue
 
             # Filter by is_defining_element
-            if (
-                is_defining is not None
-                and element_data.get("is_defining_element") != is_defining
-            ):
+            if is_defining is not None and element_data.get("is_defining_element") != is_defining:
                 continue
 
             filtered_elements.append(RAGElement(**element_data))
@@ -128,12 +125,8 @@ class ElementService:
                 # Images with Masks
                 "images": element_data.get("images", []),
                 # Aggregated Embeddings
-                "aggregated_image_embedding": element_data.get(
-                    "aggregated_image_embedding"
-                ),
-                "aggregated_text_embedding": element_data.get(
-                    "aggregated_text_embedding"
-                ),
+                "aggregated_image_embedding": element_data.get("aggregated_image_embedding"),
+                "aggregated_text_embedding": element_data.get("aggregated_text_embedding"),
                 # Legacy Embeddings
                 "text_description": element_data.get("text_description", ""),
                 # Matching Configuration
@@ -165,9 +158,7 @@ class ElementService:
 
         return element
 
-    def get_element(
-        self, db: Session, project_id: str, element_id: str
-    ) -> "RAGElement":
+    def get_element(self, db: Session, project_id: str, element_id: str) -> "RAGElement":
         """Get a single RAG element by ID.
 
         Args:
@@ -189,9 +180,7 @@ class ElementService:
 
         elements = rag_config.get("elements", {})
         if element_id not in elements:
-            raise HTTPException(
-                status_code=404, detail=f"Element {element_id} not found"
-            )
+            raise HTTPException(status_code=404, detail=f"Element {element_id} not found")
 
         return RAGElement(**elements[element_id])
 
@@ -220,9 +209,7 @@ class ElementService:
 
         elements = rag_config.get("elements", {})
         if element_id not in elements:
-            raise HTTPException(
-                status_code=404, detail=f"Element {element_id} not found"
-            )
+            raise HTTPException(status_code=404, detail=f"Element {element_id} not found")
 
         # Update element
         element_data = elements[element_id]
@@ -253,16 +240,12 @@ class ElementService:
 
         elements = rag_config.get("elements", {})
         if element_id not in elements:
-            raise HTTPException(
-                status_code=404, detail=f"Element {element_id} not found"
-            )
+            raise HTTPException(status_code=404, detail=f"Element {element_id} not found")
 
         del rag_config["elements"][element_id]
         self.project_service.save_rag_config(db, project, rag_config)
 
-    def generate_description(
-        self, db: Session, project_id: str, element_id: str
-    ) -> str:
+    def generate_description(self, db: Session, project_id: str, element_id: str) -> str:
         """Generate a description for an element.
 
         Args:
@@ -312,7 +295,7 @@ class ElementService:
 
         elements = [RAGElement(**edata) for edata in elements_dict.values()]
 
-        descriptions: dict[str, str] = (
-            self.description_service.generate_descriptions_batch(elements)
+        descriptions: dict[str, str] = self.description_service.generate_descriptions_batch(
+            elements
         )
         return descriptions

@@ -167,9 +167,7 @@ class AnalysisRequest(BaseModel):
 
 
 @router.post("/upload", response_model=UploadResponse)
-async def upload_screenshots(
-    files: list[UploadFile] = File(...), project_id: str = "default"
-):
+async def upload_screenshots(files: list[UploadFile] = File(...), project_id: str = "default"):
     """Upload screenshots for analysis.
 
     Single Responsibility: Handle HTTP upload request and convert to internal format.
@@ -287,9 +285,7 @@ async def start_analysis(request: AnalysisRequest, background_tasks: BackgroundT
 
     # Use thread pool executor instead of FastAPI background tasks
     # This ensures the task runs in a separate thread with its own event loop
-    _future = executor.submit(
-        task_runner.run_analysis_sync, analysis_id, upload, config, region
-    )
+    _future = executor.submit(task_runner.run_analysis_sync, analysis_id, upload, config, region)
 
     print(f"[API] Analysis {analysis_id} submitted successfully")
     logger.info(f"Analysis {analysis_id} submitted successfully")
@@ -319,9 +315,7 @@ async def websocket_endpoint(websocket: WebSocket, analysis_id: str):
             # Handle client messages
             try:
                 message = json.loads(data)
-                print(
-                    f"[API-WS] Received message from {analysis_id}: {message.get('type')}"
-                )
+                print(f"[API-WS] Received message from {analysis_id}: {message.get('type')}")
 
                 if message.get("type") == "ping":
                     # Respond to ping

@@ -16,11 +16,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from qontinui.rag import (
-    QdrantLocalDB,
-    RAGIndex,
-    TextEmbedder,
-)
+from qontinui.rag import QdrantLocalDB, RAGIndex, TextEmbedder
 
 
 def get_rag_dir(project_id: str) -> Path:
@@ -78,8 +74,7 @@ async def search_elements(
         # Validate database exists
         if not db_path.exists():
             raise FileNotFoundError(
-                f"Embeddings database not found: {db_path}. "
-                f"Please generate embeddings first."
+                f"Embeddings database not found: {db_path}. " f"Please generate embeddings first."
             )
 
         # Initialize text embedder (same model as used in generate_embeddings.py)
@@ -113,9 +108,7 @@ async def search_elements(
                 "element_id": element.id,
                 "name": element.name,  # type: ignore[attr-defined]
                 "score": float(result.score),
-                "element_type": (
-                    element.element_type.value if element.element_type else None
-                ),
+                "element_type": (element.element_type.value if element.element_type else None),
                 "text_description": element.text_description or "",
                 "source_screenshot_id": element.source_screenshot_id or "",
                 "state_id": element.state_id or "",

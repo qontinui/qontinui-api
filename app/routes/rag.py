@@ -27,13 +27,9 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Session, sessionmaker
 
 # Create a separate engine for the main backend database
-BACKEND_DATABASE_URL = (
-    "postgresql://qontinui_user:qontinui_dev_password@localhost:5432/qontinui_db"
-)
+BACKEND_DATABASE_URL = "postgresql://qontinui_user:qontinui_dev_password@localhost:5432/qontinui_db"
 backend_engine = create_engine(BACKEND_DATABASE_URL, pool_pre_ping=True)
-BackendSessionLocal = sessionmaker(
-    autocommit=False, autoflush=False, bind=backend_engine
-)
+BackendSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=backend_engine)
 
 # Type: ignore needed here because declarative_base() returns a dynamic class
 # that mypy cannot properly infer at static analysis time
@@ -58,12 +54,8 @@ class Project(BackendBase):
     configuration = Column(JSON, nullable=False, default={})
     version = Column(Integer, nullable=False, default=1)
     is_public = Column(Boolean, nullable=False, default=False)
-    project_type = Column(String, nullable=False, default="traditional")
-    rag_config = Column(JSON, nullable=True)
     owner_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
-    organization_id = Column(
-        UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=True
-    )
+    organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -180,9 +172,7 @@ class RAGElement(BaseModel):
     image_embedding: list[float] | None = None
 
     # Matching Configuration
-    matching_strategy: str | None = (
-        None  # "average" or "any_match", null = use project default
-    )
+    matching_strategy: str | None = None  # "average" or "any_match", null = use project default
     ocr_filter: OCRFilter | None = None
     ocr_config: OCRConfig | None = None
     expected_text: str | None = None
@@ -398,18 +388,27 @@ def get_project(db: Session, project_id: str) -> Project:
 
 
 def get_rag_config(project: Project) -> dict[str, Any]:
-    """Get RAG config from project, initializing if needed."""
-    if project.rag_config is None:
-        project.rag_config = {"elements": {}, "states": {}, "transitions": {}}
-    # project.rag_config is a Column[JSON] type, but at runtime it contains the actual dict value
-    # Cast to dict for type checking purposes
-    return dict(project.rag_config)  # type: ignore[arg-type]
+    """Get RAG config from project's configuration, initializing if needed."""
+    # RAG config is stored inside configuration["rag_config"], not as a separate column
+    config = project.configuration or {}
+    if isinstance(config, str):
+        import json
+
+        config = json.loads(config)
+    rag_config = config.get("rag_config", {"elements": {}, "states": {}, "transitions": {}})
+    return dict(rag_config)
 
 
 def save_rag_config(db: Session, project: Project, rag_config: dict[str, Any]) -> None:
-    """Save RAG config to project."""
-    # SQLAlchemy Column attributes accept the actual values at runtime
-    project.rag_config = rag_config  # type: ignore[assignment]
+    """Save RAG config to project's configuration."""
+    # RAG config is stored inside configuration["rag_config"]
+    config = project.configuration or {}
+    if isinstance(config, str):
+        import json
+
+        config = json.loads(config)
+    config["rag_config"] = rag_config
+    project.configuration = config  # type: ignore[assignment]
     project.updated_at = datetime.utcnow()  # type: ignore[assignment]
     db.commit()
     db.refresh(project)
@@ -439,11 +438,7 @@ def generate_element_description(element: RAGElement) -> str:
             base += f" {element.semantic_role}"
         elif element.element_type:
             # Fallback to element type if no semantic role
-            type_str = (
-                element.element_subtype
-                if element.element_subtype
-                else element.element_type
-            )
+            type_str = element.element_subtype if element.element_subtype else element.element_type
             base += f" {type_str}"
         else:
             base += " element"
@@ -513,9 +508,7 @@ async def get_elements(
     return [RAGElement(**elem) for elem in elements.values()]
 
 
-@router.post(
-    "/projects/{project_id}/elements", response_model=RAGElement, status_code=201
-)
+@router.post("/projects/{project_id}/elements", response_model=RAGElement, status_code=201)
 async def create_element(
     project_id: str,
     data: RAGElementFormData,
@@ -567,9 +560,7 @@ async def create_element(
             # Images with Masks
             "images": element_data.get("images", []),
             # Aggregated Embeddings
-            "aggregated_image_embedding": element_data.get(
-                "aggregated_image_embedding"
-            ),
+            "aggregated_image_embedding": element_data.get("aggregated_image_embedding"),
             "aggregated_text_embedding": element_data.get("aggregated_text_embedding"),
             # Legacy Embeddings
             "text_description": element_data.get("text_description", ""),
@@ -870,9 +861,7 @@ async def get_transitions(
     return [RAGTransition(**trans) for trans in transitions.values()]
 
 
-@router.post(
-    "/projects/{project_id}/transitions", response_model=RAGTransition, status_code=201
-)
+@router.post("/projects/{project_id}/transitions", response_model=RAGTransition, status_code=201)
 async def create_transition(
     project_id: str,
     data: RAGTransitionFormData,
@@ -918,9 +907,7 @@ async def get_transition(
 
     transitions = rag_config.get("transitions", {})
     if transition_id not in transitions:
-        raise HTTPException(
-            status_code=404, detail=f"Transition {transition_id} not found"
-        )
+        raise HTTPException(status_code=404, detail=f"Transition {transition_id} not found")
 
     return RAGTransition(**transitions[transition_id])
 
@@ -938,9 +925,7 @@ async def update_transition(
 
     transitions = rag_config.get("transitions", {})
     if transition_id not in transitions:
-        raise HTTPException(
-            status_code=404, detail=f"Transition {transition_id} not found"
-        )
+        raise HTTPException(status_code=404, detail=f"Transition {transition_id} not found")
 
     # Update transition
     trans_data = transitions[transition_id]
@@ -968,9 +953,7 @@ async def delete_transition(
 
     transitions = rag_config.get("transitions", {})
     if transition_id not in transitions:
-        raise HTTPException(
-            status_code=404, detail=f"Transition {transition_id} not found"
-        )
+        raise HTTPException(status_code=404, detail=f"Transition {transition_id} not found")
 
     del rag_config["transitions"][transition_id]
 
@@ -1053,9 +1036,7 @@ async def export_project(
 
     elements = [RAGElement(**elem) for elem in rag_config.get("elements", {}).values()]
     states = [RAGState(**state) for state in rag_config.get("states", {}).values()]
-    transitions = [
-        RAGTransition(**trans) for trans in rag_config.get("transitions", {}).values()
-    ]
+    transitions = [RAGTransition(**trans) for trans in rag_config.get("transitions", {}).values()]
 
     return RAGExportData(
         elements=elements,
@@ -1141,7 +1122,10 @@ class RAGFindRequest(BaseModel):
 
     screenshot_base64: str = Field(..., description="Base64 encoded screenshot image")
     element_id: str | None = Field(
-        None, description="Specific element ID to find (optional)"
+        None, description="Specific element ID to find (optional, deprecated - use element_ids)"
+    )
+    element_ids: list[str] | None = Field(
+        None, description="Specific element IDs to find (optional, filters search)"
     )
     similarity_threshold: float = Field(
         0.7, ge=0.0, le=1.0, description="Minimum similarity threshold"
@@ -1150,12 +1134,8 @@ class RAGFindRequest(BaseModel):
         "average", description="Matching strategy: 'average' or 'any_match'"
     )
     use_ocr: bool = Field(False, description="Whether to enable OCR text extraction")
-    return_segments: bool = Field(
-        False, description="Return all segments (for visualization)"
-    )
-    max_results: int = Field(
-        10, ge=1, le=50, description="Maximum number of results to return"
-    )
+    return_segments: bool = Field(False, description="Return all segments (for visualization)")
+    max_results: int = Field(10, ge=1, le=50, description="Maximum number of results to return")
 
 
 class RAGFindMatchBoundingBox(BaseModel):
@@ -1172,6 +1152,7 @@ class RAGFindMatch(BaseModel):
 
     element_id: str
     element_name: str
+    text_description: str | None = None
     visual_similarity: float
     text_similarity: float | None = None
     ocr_similarity: float | None = None
@@ -1185,6 +1166,7 @@ class RAGFindSegment(BaseModel):
 
     id: str
     bbox: RAGFindMatchBoundingBox
+    mask_data: str | None = None  # Base64 encoded PNG mask (grayscale, 0=transparent, 255=segment)
     mask_density: float
     text_description: str | None = None
 
@@ -1253,14 +1235,8 @@ async def find_elements(
         rag_config = get_rag_config(project)
         elements = rag_config.get("elements", {})
 
-        if not elements:
-            return RAGFindResponse(
-                success=False,
-                matches=[],
-                processing_time_ms=0,
-                segment_count=0,
-                error="No elements configured for this project",
-            )
+        # Allow segmentation-only mode when return_segments=true and no elements
+        segmentation_only = not elements and request.return_segments
 
         # Decode screenshot
         try:
@@ -1314,27 +1290,59 @@ async def find_elements(
                 total_area = w * h
                 mask_density = mask_area / total_area if total_area > 0 else 0.0
 
+                # Encode mask as base64 PNG for frontend visualization
+                mask_data_b64: str | None = None
+                if seg.mask is not None:
+                    try:
+                        # Convert mask to uint8 (0-255)
+                        mask_uint8 = (seg.mask * 255).astype(np.uint8)
+                        mask_img = PILImage.fromarray(mask_uint8, mode="L")
+                        mask_buffer = io.BytesIO()
+                        mask_img.save(mask_buffer, format="PNG")
+                        mask_buffer.seek(0)
+                        mask_data_b64 = (
+                            f"data:image/png;base64,{base64.b64encode(mask_buffer.read()).decode()}"
+                        )
+                    except Exception as mask_err:
+                        print(f"Warning: Failed to encode mask for segment {i}: {mask_err}")
+
                 response_segments.append(
                     RAGFindSegment(
                         id=f"seg_{i}",
                         bbox=RAGFindMatchBoundingBox(x=x, y=y, width=w, height=h),
+                        mask_data=mask_data_b64,
                         mask_density=float(mask_density),
                         text_description=seg.text_description,
                     )
                 )
 
-        # Filter elements if specific ID requested
-        if request.element_id:
-            if request.element_id not in elements:
+        # If segmentation-only mode, return early with just segments
+        if segmentation_only:
+            return RAGFindResponse(
+                success=True,
+                matches=[],
+                segments=response_segments,
+                processing_time_ms=(time.time() - start_time) * 1000,
+                segment_count=segment_count,
+                error=None,
+            )
+
+        # Filter elements if specific IDs requested
+        # Support both element_ids (new) and element_id (deprecated, backward compat)
+        filter_ids = request.element_ids or ([request.element_id] if request.element_id else None)
+
+        if filter_ids:
+            missing_ids = [eid for eid in filter_ids if eid not in elements]
+            if missing_ids:
                 return RAGFindResponse(
                     success=False,
                     matches=[],
                     segments=response_segments,
                     processing_time_ms=(time.time() - start_time) * 1000,
                     segment_count=segment_count,
-                    error=f"Element {request.element_id} not found",
+                    error=f"Elements not found: {', '.join(missing_ids)}",
                 )
-            elements_to_search = {request.element_id: elements[request.element_id]}
+            elements_to_search = {eid: elements[eid] for eid in filter_ids}
         else:
             elements_to_search = elements
 
@@ -1399,13 +1407,12 @@ async def find_elements(
                             if element.text_description
                             else element_id[:8]
                         ),
+                        text_description=element.text_description,
                         visual_similarity=match.visual_similarity,
                         text_similarity=match.text_similarity,
                         ocr_similarity=match.ocr_similarity,
                         ocr_text=match.ocr_text,
-                        bounding_box=RAGFindMatchBoundingBox(
-                            x=x, y=y, width=w, height=h
-                        ),
+                        bounding_box=RAGFindMatchBoundingBox(x=x, y=y, width=w, height=h),
                         score=match.combined_score,
                     )
                 )

@@ -92,8 +92,7 @@ class YOLOv8Exporter(ModelExporter):
             from ultralytics import YOLO
         except ImportError as err:
             raise ImportError(
-                "ultralytics package not installed. "
-                "Install with: pip install ultralytics"
+                "ultralytics package not installed. " "Install with: pip install ultralytics"
             ) from err
 
         logger.info(f"Loading YOLOv8 model from {self.model_path}")
@@ -439,9 +438,7 @@ class YOLOv8Exporter(ModelExporter):
             logger.error(f"Validation failed: {e}")
             return False
 
-    def _validate_onnx(
-        self, onnx_path: Path, test_input: np.ndarray
-    ) -> list[np.ndarray]:
+    def _validate_onnx(self, onnx_path: Path, test_input: np.ndarray) -> list[np.ndarray]:
         """
         Validate ONNX model.
 
@@ -456,8 +453,7 @@ class YOLOv8Exporter(ModelExporter):
             import onnxruntime as ort
         except ImportError as err:
             raise ImportError(
-                "onnxruntime package not installed. "
-                "Install with: pip install onnxruntime"
+                "onnxruntime package not installed. " "Install with: pip install onnxruntime"
             ) from err
 
         session = ort.InferenceSession(str(onnx_path))
@@ -592,9 +588,7 @@ class YOLOv8Exporter(ModelExporter):
 
 def main():
     """Main entry point for model export."""
-    parser = argparse.ArgumentParser(
-        description="Export trained models to various formats"
-    )
+    parser = argparse.ArgumentParser(description="Export trained models to various formats")
 
     parser.add_argument(
         "--model",
@@ -747,9 +741,7 @@ def main():
     logger.info(f"\n{'='*60}")
     logger.info("Export Summary")
     logger.info(f"{'='*60}")
-    logger.info(
-        f"Successfully exported {len(exported_models)}/{len(args.format)} formats:"
-    )
+    logger.info(f"Successfully exported {len(exported_models)}/{len(args.format)} formats:")
     for fmt, path in exported_models.items():
         logger.info(f"  {fmt}: {path}")
     logger.info(f"{'='*60}\n")

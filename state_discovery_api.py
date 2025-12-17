@@ -41,10 +41,7 @@ from qontinui.discovery import (
 )
 from qontinui.discovery.deletion_manager import DeletionManager
 from qontinui.discovery.models import AnalysisConfig, DeleteOptions
-from qontinui.discovery.state_construction.state_builder import (
-    StateBuilder,
-    TransitionInfo,
-)
+from qontinui.discovery.state_construction.state_builder import StateBuilder, TransitionInfo
 
 # Import state detection components (still needed for direct detection endpoints)
 from qontinui.discovery.state_detection.differential_consistency_detector import (
@@ -83,9 +80,7 @@ class StateDiscoveryStore:
         self.detected_states = {}  # state_id -> State object
         self.state_regions_cache = {}  # cache_key -> detected regions
 
-    def store_upload(
-        self, upload_id: str, screenshots: list[np.ndarray], metadata: dict
-    ):
+    def store_upload(self, upload_id: str, screenshots: list[np.ndarray], metadata: dict):
         self.uploads[upload_id] = {
             "screenshots": screenshots,
             "metadata": metadata,
@@ -313,9 +308,7 @@ class DetectedStateResponse(BaseModel):
 
 
 @router.post("/upload", response_model=UploadResponse)
-async def upload_screenshots(
-    files: list[UploadFile] = File(...), project_id: str = "default"
-):
+async def upload_screenshots(files: list[UploadFile] = File(...), project_id: str = "default"):
     """Upload screenshots for analysis."""
     upload_id = f"upload_{uuid.uuid4().hex[:12]}"
     screenshots = []
@@ -393,9 +386,7 @@ async def start_analysis(request: AnalysisRequest, background_tasks: BackgroundT
         region = request.config.region
         cropped_screenshots = []
 
-        logger.info(
-            f"Cropping to region: ({region.x},{region.y}) {region.width}x{region.height}"
-        )
+        logger.info(f"Cropping to region: ({region.x},{region.y}) {region.width}x{region.height}")
 
         for i, screenshot in enumerate(screenshots):
             original_shape = screenshot.shape
@@ -431,17 +422,13 @@ async def start_analysis(request: AnalysisRequest, background_tasks: BackgroundT
             variance_threshold=config_dict["variance_threshold"],
             min_screenshots_present=config_dict["min_screenshots_present"],
             processing_mode=config_dict["processing_mode"],
-            enable_rectangle_decomposition=config_dict[
-                "enable_rectangle_decomposition"
-            ],
+            enable_rectangle_decomposition=config_dict["enable_rectangle_decomposition"],
             enable_cooccurrence_analysis=config_dict["enable_cooccurrence_analysis"],
             similarity_threshold=config_dict.get("similarity_threshold", 0.95),
         )
     except (KeyError, TypeError, ValueError) as e:
         logger.error(f"Failed to convert analysis config: {e}")
-        raise HTTPException(
-            status_code=400, detail=f"Invalid analysis configuration: {e}"
-        ) from e
+        raise HTTPException(status_code=400, detail=f"Invalid analysis configuration: {e}") from e
 
     # Start analysis in background
     print(f"[DEBUG] Adding background task for analysis {analysis_id}")
@@ -455,9 +442,7 @@ async def start_analysis(request: AnalysisRequest, background_tasks: BackgroundT
         screenshots,
         config,
         region_offset=(
-            (request.config.region.x, request.config.region.y)
-            if request.config.region
-            else None
+            (request.config.region.x, request.config.region.y) if request.config.region else None
         ),
     )
 
@@ -480,9 +465,7 @@ def run_analysis_sync(
 ):
     """Run analysis in background (sync wrapper for background tasks)."""
     print(f"[BACKGROUND TASK] Starting run_analysis_sync for {analysis_id}")
-    print(
-        f"[BACKGROUND TASK] Screenshots: {len(screenshots)}, Region offset: {region_offset}"
-    )
+    print(f"[BACKGROUND TASK] Screenshots: {len(screenshots)}, Region offset: {region_offset}")
     logger.info(f"[BACKGROUND TASK] Starting run_analysis_sync for {analysis_id}")
     logger.info(
         f"[BACKGROUND TASK] Screenshots: {len(screenshots)}, Region offset: {region_offset}"
@@ -497,9 +480,7 @@ def run_analysis_sync(
         print(f"[BACKGROUND TASK] Running async analysis for {analysis_id}")
         logger.info(f"[BACKGROUND TASK] Running async analysis for {analysis_id}")
         # Run the async function
-        loop.run_until_complete(
-            run_analysis(analysis_id, screenshots, config, region_offset)
-        )
+        loop.run_until_complete(run_analysis(analysis_id, screenshots, config, region_offset))
         print(f"[BACKGROUND TASK] Analysis complete for {analysis_id}")
         logger.info(f"[BACKGROUND TASK] Analysis complete for {analysis_id}")
     except Exception as e:
@@ -541,9 +522,7 @@ async def run_analysis(
 
         # Progress callback
         async def progress_callback(progress_data):
-            await manager.send_update(
-                analysis_id, {"type": "progress", "data": progress_data}
-            )
+            await manager.send_update(analysis_id, {"type": "progress", "data": progress_data})
 
         # Run analysis with progress updates
         await manager.send_update(
@@ -563,13 +542,9 @@ async def run_analysis(
         analysis_start = time.time()
 
         logger.info(f"Starting analysis for {len(screenshots)} screenshots")
-        logger.info(
-            f"Screenshot shapes: {[s.shape for s in screenshots[:3]]}..."
-        )  # Show first 3
+        logger.info(f"Screenshot shapes: {[s.shape for s in screenshots[:3]]}...")  # Show first 3
         if region_offset:
-            logger.info(
-                f"Using region offset: ({region_offset[0]}, {region_offset[1]})"
-            )
+            logger.info(f"Using region offset: ({region_offset[0]}, {region_offset[1]})")
 
         # Use the facade for discovery
         try:
@@ -713,9 +688,7 @@ async def check_deletion_impact(state_image_id: str):
 
 
 @router.delete("/state-image/{state_image_id}")
-async def delete_state_image(
-    state_image_id: str, cascade: bool = False, force: bool = False
-):
+async def delete_state_image(state_image_id: str, cascade: bool = False, force: bool = False):
     """Delete a StateImage."""
     options = DeleteOptions(cascade=cascade, force=force)
 
@@ -834,9 +807,7 @@ async def get_thumbnail(screenshot_id: str):
     """Get thumbnail for a screenshot."""
     # In production, this would return actual thumbnail
     # For now, return placeholder
-    return JSONResponse(
-        {"thumbnail_url": f"data:image/png;base64,placeholder_{screenshot_id}"}
-    )
+    return JSONResponse({"thumbnail_url": f"data:image/png;base64,placeholder_{screenshot_id}"})
 
 
 @router.post("/cancel/{analysis_id}")
@@ -854,9 +825,7 @@ async def cancel_analysis(analysis_id: str):
 
 
 @router.post("/project/{project_id}/screenshots", response_model=SaveScreenshotResponse)
-async def save_project_screenshots(
-    project_id: str, files: list[UploadFile] = File(...)
-):
+async def save_project_screenshots(project_id: str, files: list[UploadFile] = File(...)):
     """Save screenshots to project with duplicate detection."""
     saved = []
     duplicates = []
@@ -875,9 +844,7 @@ async def save_project_screenshots(
             }
 
             # Try to store (will detect duplicates)
-            screenshot_id, hash_value = store.store_project_screenshot(
-                project_id, screenshot_data
-            )
+            screenshot_id, hash_value = store.store_project_screenshot(project_id, screenshot_data)
 
             if screenshot_id is None:
                 # Duplicate found
@@ -911,9 +878,7 @@ async def save_project_screenshots(
     )
 
 
-@router.get(
-    "/project/{project_id}/screenshots", response_model=ProjectScreenshotResponse
-)
+@router.get("/project/{project_id}/screenshots", response_model=ProjectScreenshotResponse)
 async def get_project_screenshots(project_id: str):
     """Get all screenshots for a project."""
     screenshots_dict = store.get_project_screenshots(project_id)
@@ -961,9 +926,7 @@ async def get_project_screenshot_thumbnail(project_id: str, screenshot_id: str):
         thumbnail_height = int(thumbnail_width * aspect_ratio)
 
         # Resize image
-        thumbnail = img.resize(
-            (thumbnail_width, thumbnail_height), PILImage.Resampling.LANCZOS
-        )
+        thumbnail = img.resize((thumbnail_width, thumbnail_height), PILImage.Resampling.LANCZOS)
 
         # Convert to base64
         buffer = io.BytesIO()
@@ -1095,9 +1058,7 @@ async def create_pattern_from_state_image(
 
 
 @router.post("/state-detection/analyze-transitions")
-async def analyze_transitions(
-    request: AnalyzeTransitionsRequest, project_id: str = "default"
-):
+async def analyze_transitions(request: AnalyzeTransitionsRequest, project_id: str = "default"):
     """Analyze transition pairs to detect state regions using differential consistency.
 
     This endpoint takes before/after screenshot pairs and identifies regions that
@@ -1138,12 +1099,8 @@ async def analyze_transitions(
         # Load screenshot pairs from storage
         screenshot_pairs = []
         for pair in request.transition_pairs:
-            before_data = store.get_screenshot_by_id(
-                project_id, pair.before_screenshot_id
-            )
-            after_data = store.get_screenshot_by_id(
-                project_id, pair.after_screenshot_id
-            )
+            before_data = store.get_screenshot_by_id(project_id, pair.before_screenshot_id)
+            after_data = store.get_screenshot_by_id(project_id, pair.after_screenshot_id)
 
             if not before_data or not after_data:
                 raise HTTPException(
@@ -1259,9 +1216,7 @@ async def detect_regions_from_upload(request: DetectRegionsRequest):
         raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
         logger.error(f"Error detecting regions: {e}")
-        raise HTTPException(
-            status_code=500, detail=f"Detection failed: {str(e)}"
-        ) from e
+        raise HTTPException(status_code=500, detail=f"Detection failed: {str(e)}") from e
 
 
 @router.get("/state-detection/states")
@@ -1291,9 +1246,7 @@ async def list_detected_states():
 
 
 @router.post("/state-detection/build-state", response_model=DetectedStateResponse)
-async def build_state_from_screenshots(
-    request: BuildStateRequest, project_id: str = "default"
-):
+async def build_state_from_screenshots(request: BuildStateRequest, project_id: str = "default"):
     """Build a complete State object from screenshots using StateBuilder.
 
     This endpoint orchestrates the full state construction pipeline:
@@ -1323,9 +1276,7 @@ async def build_state_from_screenshots(
     """
     try:
         if not request.screenshot_ids:
-            raise HTTPException(
-                status_code=400, detail="screenshot_ids cannot be empty"
-            )
+            raise HTTPException(status_code=400, detail="screenshot_ids cannot be empty")
 
         # Load screenshots from storage
         screenshots = []
@@ -1345,12 +1296,8 @@ async def build_state_from_screenshots(
         if request.transition_pairs:
             transitions_to_state = []
             for pair in request.transition_pairs:
-                before_data = store.get_screenshot_by_id(
-                    project_id, pair.before_screenshot_id
-                )
-                after_data = store.get_screenshot_by_id(
-                    project_id, pair.after_screenshot_id
-                )
+                before_data = store.get_screenshot_by_id(project_id, pair.before_screenshot_id)
+                after_data = store.get_screenshot_by_id(project_id, pair.after_screenshot_id)
 
                 if not before_data or not after_data:
                     logger.warning(
@@ -1359,12 +1306,8 @@ async def build_state_from_screenshots(
                     )
                     continue
 
-                before_img = np.array(
-                    PILImage.open(io.BytesIO(before_data["image_bytes"]))
-                )
-                after_img = np.array(
-                    PILImage.open(io.BytesIO(after_data["image_bytes"]))
-                )
+                before_img = np.array(PILImage.open(io.BytesIO(before_data["image_bytes"])))
+                after_img = np.array(PILImage.open(io.BytesIO(after_data["image_bytes"])))
 
                 transition = TransitionInfo(
                     before_screenshot=before_img,
@@ -1464,9 +1407,7 @@ async def build_state_from_screenshots(
         import traceback
 
         logger.error(traceback.format_exc())
-        raise HTTPException(
-            status_code=500, detail=f"State building failed: {str(e)}"
-        ) from e
+        raise HTTPException(status_code=500, detail=f"State building failed: {str(e)}") from e
 
 
 # Force reload Mon Sep 29 16:55:25 CEST 2025

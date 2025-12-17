@@ -40,9 +40,7 @@ class StateService:
         states = rag_config.get("states", {})
         return [RAGState(**state) for state in states.values()]
 
-    def create_state(
-        self, db: Session, project_id: str, data: "RAGStateFormData"
-    ) -> "RAGState":
+    def create_state(self, db: Session, project_id: str, data: "RAGStateFormData") -> "RAGState":
         """Create a new RAG state.
 
         Args:

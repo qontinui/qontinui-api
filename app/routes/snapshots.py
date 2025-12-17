@@ -109,13 +109,9 @@ def sync_snapshot(
             run_id=snapshot_run.run_id,
             run_directory=snapshot_run.run_directory,
             start_time=snapshot_run.start_time.isoformat(),
-            end_time=(
-                snapshot_run.end_time.isoformat() if snapshot_run.end_time else None
-            ),
+            end_time=(snapshot_run.end_time.isoformat() if snapshot_run.end_time else None),
             duration_seconds=(
-                float(snapshot_run.duration_seconds)
-                if snapshot_run.duration_seconds
-                else None
+                float(snapshot_run.duration_seconds) if snapshot_run.duration_seconds else None
             ),
             execution_mode=snapshot_run.execution_mode,
             total_actions=snapshot_run.total_actions,
@@ -136,9 +132,7 @@ def sync_snapshot(
             raise HTTPException(status_code=409, detail=str(e)) from e
         raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Failed to sync snapshot: {str(e)}"
-        ) from e
+        raise HTTPException(status_code=500, detail=f"Failed to sync snapshot: {str(e)}") from e
 
 
 @router.post("/import", response_model=SnapshotRunResponse, status_code=201)
@@ -214,9 +208,7 @@ def list_snapshots(
             run_directory=snap.run_directory,
             start_time=snap.start_time.isoformat(),
             end_time=snap.end_time.isoformat() if snap.end_time else None,
-            duration_seconds=(
-                float(snap.duration_seconds) if snap.duration_seconds else None
-            ),
+            duration_seconds=(float(snap.duration_seconds) if snap.duration_seconds else None),
             execution_mode=snap.execution_mode,
             total_actions=snap.total_actions,
             successful_actions=snap.successful_actions,
@@ -267,9 +259,7 @@ def get_snapshot(
         run_directory=snapshot.run_directory,
         start_time=snapshot.start_time.isoformat(),
         end_time=snapshot.end_time.isoformat() if snapshot.end_time else None,
-        duration_seconds=(
-            float(snapshot.duration_seconds) if snapshot.duration_seconds else None
-        ),
+        duration_seconds=(float(snapshot.duration_seconds) if snapshot.duration_seconds else None),
         execution_mode=snapshot.execution_mode,
         total_actions=snapshot.total_actions,
         successful_actions=snapshot.successful_actions,
@@ -340,9 +330,7 @@ def get_snapshot_file(
 @router.delete("/{run_id}", status_code=204)
 def delete_snapshot(
     run_id: str,
-    delete_files: bool = Query(
-        False, description="Also delete snapshot files from disk"
-    ),
+    delete_files: bool = Query(False, description="Also delete snapshot files from disk"),
     db: Session = Depends(get_db),
 ):
     """

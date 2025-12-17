@@ -55,9 +55,7 @@ def get_rag_dir(project_id: str) -> Path:
     return rag_dir
 
 
-def crop_element_from_screenshot(
-    screenshot_path: Path, bounding_box: BoundingBox
-) -> Image.Image:
+def crop_element_from_screenshot(screenshot_path: Path, bounding_box: BoundingBox) -> Image.Image:
     """Crop element region from screenshot using bounding box.
 
     Args:
@@ -101,9 +99,7 @@ async def generate_embeddings_for_project(project_id: str) -> None:
         if not config_path.exists():
             raise FileNotFoundError(f"Config not found: {config_path}")
         if not screenshots_dir.exists():
-            raise FileNotFoundError(
-                f"Screenshots directory not found: {screenshots_dir}"
-            )
+            raise FileNotFoundError(f"Screenshots directory not found: {screenshots_dir}")
 
         # Create embeddings directory
         embeddings_dir.mkdir(parents=True, exist_ok=True)
@@ -116,9 +112,7 @@ async def generate_embeddings_for_project(project_id: str) -> None:
 
         elements_data = config.get("elements", [])
         if not elements_data:
-            log_progress(
-                "complete", elements_embedded=0, message="No elements to embed"
-            )
+            log_progress("complete", elements_embedded=0, message="No elements to embed")
             return
 
         total_elements = len(elements_data)
@@ -164,9 +158,7 @@ async def generate_embeddings_for_project(project_id: str) -> None:
 
                 # Generate text embedding
                 if element.text_description:
-                    element.text_embedding = text_embedder.encode(
-                        element.text_description
-                    )
+                    element.text_embedding = text_embedder.encode(element.text_description)
 
                 # Get screenshot path
                 screenshot_id = element.source_screenshot_id
@@ -187,9 +179,7 @@ async def generate_embeddings_for_project(project_id: str) -> None:
                                 screenshot_path = alt_path
                                 break
                         else:
-                            raise FileNotFoundError(
-                                f"Screenshot not found: {screenshot_path}"
-                            )
+                            raise FileNotFoundError(f"Screenshot not found: {screenshot_path}")
 
                 # Crop element from screenshot using bounding box
                 if element.bounding_box:
@@ -231,9 +221,7 @@ async def generate_embeddings_for_project(project_id: str) -> None:
             except Exception as e:
                 error_msg = f"Failed to process element {idx}: {e}"
                 errors.append(error_msg)
-                log_progress(
-                    "progress", percent=progress, message=f"Warning: {error_msg}"
-                )
+                log_progress("progress", percent=progress, message=f"Warning: {error_msg}")
 
         # Save embeddings to JSON
         log_progress("progress", percent=90, message="Saving embeddings...")

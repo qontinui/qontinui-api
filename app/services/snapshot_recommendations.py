@@ -94,9 +94,7 @@ class MaximumCoverageStrategy(RecommendationStrategy):
 
         # Calculate coverage score
         coverage_score = (
-            len(covered_states) / len(total_possible_states)
-            if total_possible_states
-            else 0.0
+            len(covered_states) / len(total_possible_states) if total_possible_states else 0.0
         )
 
         reason = (
@@ -268,9 +266,7 @@ class RecentAndDiverseStrategy(RecommendationStrategy):
 
         # Calculate final combined score
         if selected_runs:
-            avg_recency = sum(recency_scores[r] for r in selected_runs) / len(
-                selected_runs
-            )
+            avg_recency = sum(recency_scores[r] for r in selected_runs) / len(selected_runs)
 
             if len(selected_runs) > 1:
                 similarities = []
@@ -284,9 +280,7 @@ class RecentAndDiverseStrategy(RecommendationStrategy):
             else:
                 avg_diversity = 1.0
 
-            final_score = (
-                recency_weight * avg_recency + diversity_weight * avg_diversity
-            )
+            final_score = recency_weight * avg_recency + diversity_weight * avg_diversity
         else:
             final_score = 0.0
 
@@ -328,9 +322,7 @@ class PriorityWeightedStrategy(RecommendationStrategy):
         priorities = [run.priority for run in available_runs]
         min_priority = min(priorities)
         max_priority = max(priorities)
-        priority_range = (
-            max_priority - min_priority if max_priority > min_priority else 1
-        )
+        priority_range = max_priority - min_priority if max_priority > min_priority else 1
 
         normalized_priorities = {
             str(run.run_id): (run.priority - min_priority) / priority_range
@@ -360,9 +352,7 @@ class PriorityWeightedStrategy(RecommendationStrategy):
                 run_states = set(coverage["unique_states"])
                 new_states = len(run_states - covered_states)
                 coverage_score = (
-                    new_states / len(total_possible_states)
-                    if total_possible_states
-                    else 0.0
+                    new_states / len(total_possible_states) if total_possible_states else 0.0
                 )
 
                 # Calculate weighted score
@@ -384,9 +374,7 @@ class PriorityWeightedStrategy(RecommendationStrategy):
 
         # Calculate final score
         final_score = (
-            len(covered_states) / len(total_possible_states)
-            if total_possible_states
-            else 0.0
+            len(covered_states) / len(total_possible_states) if total_possible_states else 0.0
         )
 
         reason = (
@@ -458,9 +446,7 @@ class SnapshotRecommendationService:
             if "execution_mode" in filters:
                 query = query.filter_by(execution_mode=filters["execution_mode"])
             if "min_actions" in filters:
-                query = query.filter(
-                    SnapshotRun.total_actions >= filters["min_actions"]
-                )
+                query = query.filter(SnapshotRun.total_actions >= filters["min_actions"])
             if "start_date" in filters:
                 query = query.filter(SnapshotRun.start_time >= filters["start_date"])
 
@@ -546,8 +532,6 @@ class SnapshotRecommendationService:
             }
 
         # Find recommendation with highest score
-        best: dict[str, Any] = max(
-            all_recommendations["recommendations"], key=lambda r: r["score"]
-        )
+        best: dict[str, Any] = max(all_recommendations["recommendations"], key=lambda r: r["score"])
 
         return best

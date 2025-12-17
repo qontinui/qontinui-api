@@ -257,9 +257,7 @@ async def create_pattern(request: CreatePatternRequest):
             mask = np.ones(image.shape[:2], dtype=np.float32)
 
         # Generate unique ID
-        pattern_id = (
-            f"pattern_{len(_pattern_storage)}_{int(datetime.now().timestamp())}"
-        )
+        pattern_id = f"pattern_{len(_pattern_storage)}_{int(datetime.now().timestamp())}"
 
         # Create Pattern
         pattern = Pattern(
@@ -301,10 +299,7 @@ async def get_pattern(pattern_id: str):
 @router.get("/patterns", response_model=list[PatternDetailsResponse])
 async def list_patterns():
     """List all patterns."""
-    return [
-        PatternDetailsResponse(**pattern.to_dict())
-        for pattern in _pattern_storage.values()
-    ]
+    return [PatternDetailsResponse(**pattern.to_dict()) for pattern in _pattern_storage.values()]
 
 
 @router.post("/patterns/{pattern_id}/optimize", response_model=OptimizeMaskResponse)
@@ -312,9 +307,7 @@ async def optimize_pattern_mask(pattern_id: str, request: OptimizeMaskRequest):
     """Optimize a pattern's mask based on positive and negative samples."""
     try:
         if pattern_id not in _pattern_storage:
-            raise HTTPException(
-                status_code=404, detail=f"Pattern {pattern_id} not found"
-            )
+            raise HTTPException(status_code=404, detail=f"Pattern {pattern_id} not found")
 
         pattern = _pattern_storage[pattern_id]
 
@@ -322,9 +315,7 @@ async def optimize_pattern_mask(pattern_id: str, request: OptimizeMaskRequest):
         positive_samples = [base64_to_numpy(img) for img in request.positive_samples]
         negative_samples = None
         if request.negative_samples:
-            negative_samples = [
-                base64_to_numpy(img) for img in request.negative_samples
-            ]
+            negative_samples = [base64_to_numpy(img) for img in request.negative_samples]
 
         # Optimize mask
         optimized_mask, metrics = pattern.optimize_mask(
@@ -348,16 +339,12 @@ async def optimize_pattern_mask(pattern_id: str, request: OptimizeMaskRequest):
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@router.post(
-    "/patterns/{pattern_id}/similarity", response_model=CalculateSimilarityResponse
-)
+@router.post("/patterns/{pattern_id}/similarity", response_model=CalculateSimilarityResponse)
 async def calculate_similarity(pattern_id: str, request: CalculateSimilarityRequest):
     """Calculate similarity between a pattern and an image."""
     try:
         if pattern_id not in _pattern_storage:
-            raise HTTPException(
-                status_code=404, detail=f"Pattern {pattern_id} not found"
-            )
+            raise HTTPException(status_code=404, detail=f"Pattern {pattern_id} not found")
 
         pattern = _pattern_storage[pattern_id]
 
@@ -389,9 +376,7 @@ async def add_variation(pattern_id: str, request: AddVariationRequest):
     """Add a variation image to a pattern for optimization."""
     try:
         if pattern_id not in _pattern_storage:
-            raise HTTPException(
-                status_code=404, detail=f"Pattern {pattern_id} not found"
-            )
+            raise HTTPException(status_code=404, detail=f"Pattern {pattern_id} not found")
 
         pattern = _pattern_storage[pattern_id]
 

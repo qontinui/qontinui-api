@@ -65,12 +65,8 @@ class SnapshotRun(Base):  # type: ignore[misc,valid-type]
     metadata_json = Column(JSONB, nullable=False)
 
     # Optional associations
-    workflow_id = Column(
-        Integer, ForeignKey("workflows.id", ondelete="SET NULL"), nullable=True
-    )
-    created_by = Column(
-        Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
-    )
+    workflow_id = Column(Integer, ForeignKey("workflows.id", ondelete="SET NULL"), nullable=True)
+    created_by = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
 
     # Tags and notes
     tags: list[str] = Column(ARRAY(Text), nullable=True)  # type: ignore[assignment]
@@ -150,9 +146,7 @@ class SnapshotAction(Base):  # type: ignore[misc,valid-type]
 
     # Indexes
     __table_args__ = (
-        Index(
-            "idx_snapshot_actions_run_sequence", "snapshot_run_id", "sequence_number"
-        ),
+        Index("idx_snapshot_actions_run_sequence", "snapshot_run_id", "sequence_number"),
         Index("idx_snapshot_actions_timestamp", "timestamp"),
         Index("idx_snapshot_actions_pattern_id", "pattern_id"),
         Index("idx_snapshot_actions_action_type", "action_type"),
@@ -216,8 +210,7 @@ class SnapshotPattern(Base):  # type: ignore[misc,valid-type]
 
     def __repr__(self) -> str:
         return (
-            f"<SnapshotPattern(run_id={self.snapshot_run_id}, "
-            f"pattern_id='{self.pattern_id}')>"
+            f"<SnapshotPattern(run_id={self.snapshot_run_id}, " f"pattern_id='{self.pattern_id}')>"
         )
 
 
