@@ -382,23 +382,23 @@ class YOLOv8Exporter(ModelExporter):
 
     def validate_export(
         self,
-        exported_format: str,
+        original_model_path: Path,
         exported_model_path: Path,
         test_image: Path | None = None,
-        tolerance: float = 1e-3,
     ) -> bool:
         """
         Validate exported model against original.
 
         Args:
-            exported_format: Format of exported model
+            original_model_path: Path to original model
             exported_model_path: Path to exported model
             test_image: Optional test image for comparison
-            tolerance: Numerical tolerance for comparison
 
         Returns:
             True if validation passes, False otherwise
         """
+        # Infer format from file extension
+        exported_format = exported_model_path.suffix.lstrip(".")
         logger.info(f"Validating {exported_format} export")
 
         if test_image is None:
@@ -407,8 +407,10 @@ class YOLOv8Exporter(ModelExporter):
         else:
             import cv2
 
-            test_input = cv2.imread(str(test_image))
-            test_input = cv2.cvtColor(test_input, cv2.COLOR_BGR2RGB)
+            img = cv2.imread(str(test_image))
+            if img is None:
+                raise ValueError(f"Failed to read image: {test_image}")
+            test_input = cv2.cvtColor(img, cv2.COLOR_BGR2RGB).astype(np.uint8)
 
         try:
             # Get predictions from original model
@@ -437,7 +439,9 @@ class YOLOv8Exporter(ModelExporter):
             logger.error(f"Validation failed: {e}")
             return False
 
-    def _validate_onnx(self, onnx_path: Path, test_input: np.ndarray) -> np.ndarray:
+    def _validate_onnx(
+        self, onnx_path: Path, test_input: np.ndarray
+    ) -> list[np.ndarray]:
         """
         Validate ONNX model.
 
@@ -473,7 +477,10 @@ class YOLOv8Exporter(ModelExporter):
         img = np.expand_dims(img, axis=0)  # Add batch dimension
 
         # Run inference
-        outputs = session.run(None, {input_name: img})
+        raw_outputs = session.run(None, {input_name: img})
+        outputs: list[np.ndarray] = [
+            np.array(o) if not isinstance(o, np.ndarray) else o for o in raw_outputs
+        ]
 
         logger.info(f"ONNX output shapes: {[o.shape for o in outputs]}")
 

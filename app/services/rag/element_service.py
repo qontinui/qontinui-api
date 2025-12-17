@@ -277,7 +277,8 @@ class ElementService:
             HTTPException: 404 if element not found
         """
         element = self.get_element(db, project_id, element_id)
-        return self.description_service.generate_element_description(element)
+        description: str = self.description_service.generate_element_description(element)
+        return description
 
     def batch_generate_descriptions(
         self, db: Session, project_id: str, element_ids: list[str] | None = None
@@ -311,4 +312,7 @@ class ElementService:
 
         elements = [RAGElement(**edata) for edata in elements_dict.values()]
 
-        return self.description_service.generate_descriptions_batch(elements)
+        descriptions: dict[str, str] = (
+            self.description_service.generate_descriptions_batch(elements)
+        )
+        return descriptions

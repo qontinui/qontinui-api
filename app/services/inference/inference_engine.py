@@ -258,7 +258,11 @@ class ONNXInferenceEngine(InferenceEngine):
             if image is None:
                 raise ValueError(f"Failed to load image: {image}")
 
-        original_shape = image.shape[:2]
+        original_shape_tuple = image.shape[:2]
+        original_shape: tuple[int, int] = (
+            int(original_shape_tuple[0]),
+            int(original_shape_tuple[1]),
+        )
 
         # Preprocess
         input_data = self.preprocess(image)
@@ -357,7 +361,7 @@ class ONNXInferenceEngine(InferenceEngine):
             return []
 
         # Group by class
-        class_detections = {}
+        class_detections: dict[int, list[dict]] = {}
         for det in detections:
             cls = det["class"]
             if cls not in class_detections:
