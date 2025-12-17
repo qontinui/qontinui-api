@@ -214,11 +214,11 @@ class ONNXInferenceEngine(InferenceEngine):
 
         try:
             import onnxruntime as ort
-        except ImportError:
+        except ImportError as err:
             raise ImportError(
                 "onnxruntime package not installed. "
                 "Install with: pip install onnxruntime"
-            )
+            ) from err
 
         logger.info("Loading ONNX model")
 
@@ -253,7 +253,7 @@ class ONNXInferenceEngine(InferenceEngine):
             List of detections
         """
         # Load image if path provided
-        if isinstance(image, (str, Path)):
+        if isinstance(image, str | Path):
             image = cv2.imread(str(image))
             if image is None:
                 raise ValueError(f"Failed to load image: {image}")
@@ -366,7 +366,7 @@ class ONNXInferenceEngine(InferenceEngine):
 
         # Apply NMS per class
         final_detections = []
-        for cls, dets in class_detections.items():
+        for _cls, dets in class_detections.items():
             # Sort by confidence
             dets = sorted(dets, key=lambda x: x["confidence"], reverse=True)
 
@@ -422,11 +422,11 @@ class YOLOv8InferenceEngine(InferenceEngine):
 
         try:
             from ultralytics import YOLO
-        except ImportError:
+        except ImportError as err:
             raise ImportError(
                 "ultralytics package not installed. "
                 "Install with: pip install ultralytics"
-            )
+            ) from err
 
         logger.info("Loading YOLOv8 model")
         self.model = YOLO(str(self.model_path))
@@ -524,7 +524,7 @@ class InferenceBenchmark:
 
         for _ in tqdm(range(num_iterations), desc="Benchmarking"):
             start = time.perf_counter()
-            detections = self.engine.predict(image)
+            _ = self.engine.predict(image)
             end = time.perf_counter()
             timings.append((end - start) * 1000)  # Convert to ms
 
