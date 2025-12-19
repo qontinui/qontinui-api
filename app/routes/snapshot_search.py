@@ -1,6 +1,6 @@
 """API endpoints for snapshot search and analytics."""
 
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -332,7 +332,6 @@ def get_top_patterns(
         List of patterns ranked by metric
     """
     service = SnapshotQueryService(db)
-    start_date = datetime.now() - timedelta(days=period_days)
 
     # Get trends (includes top failures and usage)
     trends = service.get_execution_trends(
@@ -355,6 +354,8 @@ def get_top_patterns(
 
     elif metric == "success_rate":
         # Need to calculate success rates for all patterns
+        from datetime import datetime, timedelta
+        start_date = datetime.utcnow() - timedelta(days=period_days)
         from sqlalchemy import func
 
         from app.models.snapshot import SnapshotPattern, SnapshotRun
