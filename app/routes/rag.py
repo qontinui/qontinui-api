@@ -390,7 +390,8 @@ def get_project(db: Session, project_id: str) -> Project:
 def get_rag_config(project: Project) -> dict[str, Any]:
     """Get RAG config from project's configuration, initializing if needed."""
     # RAG config is stored inside configuration["rag_config"], not as a separate column
-    config = project.configuration or {}
+    raw_config = project.configuration
+    config: dict[str, Any] = dict(raw_config) if raw_config else {}
     if isinstance(config, str):
         import json
 
@@ -402,7 +403,8 @@ def get_rag_config(project: Project) -> dict[str, Any]:
 def save_rag_config(db: Session, project: Project, rag_config: dict[str, Any]) -> None:
     """Save RAG config to project's configuration."""
     # RAG config is stored inside configuration["rag_config"]
-    config = project.configuration or {}
+    raw_config = project.configuration
+    config: dict[str, Any] = dict(raw_config) if raw_config else {}
     if isinstance(config, str):
         import json
 

@@ -51,6 +51,7 @@ torch = {version = "^2.5", source = "pytorch-cuda"}
 torchvision = {version = "^0.20", source = "pytorch-cuda"}
 aiofiles = "^25.1.0"
 aioboto3 = "^15.5.0"
+qdrant-client = "^1.11.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3"

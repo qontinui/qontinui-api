@@ -25,10 +25,10 @@ from slowapi.util import get_remote_address
 
 from app.adapters.state_adapter import convert_multiple_states
 from app.routes.capture import router as capture_router
+from app.routes.embeddings import router as embeddings_router
 
 # Import RAG API router
 from app.routes.rag import router as rag_router
-from app.routes.embeddings import router as embeddings_router
 from app.routes.snapshot_search import router as snapshot_search_router
 
 # Import Snapshot API routers
@@ -176,7 +176,6 @@ app.include_router(semantic_router, prefix="/api")
 # Include State Discovery router
 app.include_router(state_discovery_router, prefix="/api")
 
-from app.routes.embeddings import router as embeddings_router
 
 app.include_router(embeddings_router, prefix="/api")
 
