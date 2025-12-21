@@ -355,6 +355,7 @@ def get_top_patterns(
     elif metric == "success_rate":
         # Need to calculate success rates for all patterns
         from datetime import datetime, timedelta
+
         start_date = datetime.utcnow() - timedelta(days=period_days)
         from sqlalchemy import func
 
