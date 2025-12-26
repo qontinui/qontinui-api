@@ -66,6 +66,7 @@ types-requests = "^2.32.4.20250913"
 types-pyyaml = "^6.0.12.20250915"
 types-aiofiles = "^25.1.0.20251011"
 isort = "^7.0.0"
+bandit = "^1.9.2"
 
 [build-system]
 requires = ["poetry-core"]

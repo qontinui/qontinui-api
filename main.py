@@ -27,12 +27,12 @@ from app.adapters.state_adapter import convert_multiple_states
 from app.routes.capture import router as capture_router
 from app.routes.embeddings import router as embeddings_router
 
+# Import Pathfinding router
+from app.routes.pathfinding import router as pathfinding_router
+
 # Import RAG API router
 from app.routes.rag import router as rag_router
 from app.routes.snapshot_search import router as snapshot_search_router
-
-# Import Pathfinding router
-from app.routes.pathfinding import router as pathfinding_router
 
 # Import Snapshot API routers
 from app.routes.snapshots import router as snapshots_router
