@@ -47,6 +47,7 @@ redis = "^7.1.0"
 slowapi = "^0.1.9"
 qontinui = {path = "../qontinui", develop = true}
 qontinui-schemas = {path = "../qontinui-schemas", develop = true}
+multistate = {path = "../multistate", develop = true}
 torch = {version = "^2.5", source = "pytorch-cuda"}
 torchvision = {version = "^0.20", source = "pytorch-cuda"}
 aiofiles = "^25.1.0"

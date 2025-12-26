@@ -13,76 +13,21 @@ from typing import Any
 
 from fastapi import APIRouter
 from PIL import Image as PILImage
-from pydantic import BaseModel, Field
+
+# Import shared schemas from qontinui-schemas
+from qontinui_schemas.api.rag import (
+    BatchComputeEmbeddingRequest,
+    BatchComputeEmbeddingResponse,
+    BatchEmbeddingResult,
+    ComputeEmbeddingRequest,
+    ComputeEmbeddingResponse,
+    ComputeTextEmbeddingRequest,
+    ComputeTextEmbeddingResponse,
+)
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/embeddings", tags=["embeddings"])
-
-
-# =============================================================================
-# Request/Response Models
-# =============================================================================
-
-
-class ComputeEmbeddingRequest(BaseModel):
-    """Request to compute embedding for a single image."""
-
-    image_data: str = Field(..., description="Base64 encoded image data")
-    compute_text_embedding: bool = Field(
-        default=False, description="Also compute text embedding from OCR"
-    )
-    text_description: str | None = Field(
-        default=None, description="Optional text description for text embedding"
-    )
-
-
-class ComputeEmbeddingResponse(BaseModel):
-    """Response with computed embeddings."""
-
-    success: bool
-    image_embedding: list[float] | None = None
-    text_embedding: list[float] | None = None
-    ocr_text: str | None = None
-    ocr_confidence: float | None = None
-    processing_time_ms: float = 0.0
-    error: str | None = None
-
-
-class BatchComputeEmbeddingRequest(BaseModel):
-    """Request to compute embeddings for multiple images."""
-
-    images: list[dict[str, Any]] = Field(
-        ...,
-        description="List of images with 'id', 'image_data' (base64), and optional 'text_description'",
-    )
-    compute_text_embeddings: bool = Field(
-        default=True, description="Compute text embeddings for all images"
-    )
-    extract_ocr: bool = Field(default=True, description="Extract OCR text from images")
-
-
-class BatchEmbeddingResult(BaseModel):
-    """Result for a single image in batch processing."""
-
-    id: str
-    success: bool
-    image_embedding: list[float] | None = None
-    text_embedding: list[float] | None = None
-    ocr_text: str | None = None
-    ocr_confidence: float | None = None
-    error: str | None = None
-
-
-class BatchComputeEmbeddingResponse(BaseModel):
-    """Response with batch computed embeddings."""
-
-    success: bool
-    results: list[BatchEmbeddingResult]
-    total_processed: int
-    successful: int
-    failed: int
-    processing_time_ms: float = 0.0
 
 
 # =============================================================================
@@ -179,7 +124,7 @@ def compute_clip_embedding(image: PILImage.Image) -> list[float] | None:
 
 
 def compute_text_embedding(text: str) -> list[float] | None:
-    """Compute text embedding."""
+    """Compute text embedding using sentence transformer (384 dim)."""
     if not text or not text.strip():
         return None
 
@@ -194,6 +139,65 @@ def compute_text_embedding(text: str) -> list[float] | None:
     except Exception as e:
         logger.error(f"Failed to compute text embedding: {e}")
         return None
+
+
+def compute_clip_text_embedding(text: str) -> list[float] | None:
+    """Compute CLIP text embedding (512 dim) for semantic search.
+
+    Uses CLIP's text encoder to produce embeddings in the same space as
+    CLIP image embeddings, enabling text-to-image similarity search.
+    """
+    if not text or not text.strip():
+        return None
+
+    model = get_clip_model()
+    if model == "fallback":
+        # Return a dummy embedding for testing
+        return [0.0] * 512
+
+    try:
+        embedding = model.encode_text(text)
+        return embedding if isinstance(embedding, list) else list(embedding)
+    except Exception as e:
+        logger.error(f"Failed to compute CLIP text embedding: {e}")
+        return None
+
+
+def generate_text_description(
+    name: str | None = None,
+    ocr_text: str | None = None,
+) -> str | None:
+    """Generate a natural language description for an element.
+
+    Combines the element name and OCR text into a searchable description.
+
+    Args:
+        name: Optional element name (e.g., "login-button", "submit-form")
+        ocr_text: Optional OCR-extracted text from the image
+
+    Returns:
+        Natural language description or None if no text available
+    """
+    parts = []
+
+    # Add element name if available (convert kebab-case to natural language)
+    if name:
+        # Convert kebab-case/snake_case to readable text
+        readable_name = name.replace("-", " ").replace("_", " ").strip()
+        if readable_name:
+            parts.append(readable_name)
+
+    # Add OCR text if available and different from name
+    if ocr_text:
+        ocr_clean = ocr_text.strip()
+        # Only add if it provides additional info
+        if ocr_clean and (not name or ocr_clean.lower() not in name.lower()):
+            parts.append(f'with text "{ocr_clean}"')
+
+    if not parts:
+        return None
+
+    return " ".join(parts)
 
 
 def extract_ocr_text(image: PILImage.Image) -> tuple[str | None, float | None]:
@@ -268,8 +272,14 @@ async def compute_embedding(request: ComputeEmbeddingRequest) -> ComputeEmbeddin
         if request.compute_text_embedding:
             ocr_text, ocr_confidence = extract_ocr_text(image)
 
-        # Use provided text description or OCR text for text embedding
-        text_for_embedding = request.text_description or ocr_text
+        # Generate text description from name and OCR
+        text_description = generate_text_description(
+            name=request.text_description,  # text_description is used as name
+            ocr_text=ocr_text,
+        )
+
+        # Use description for text embedding, fallback to provided description or OCR
+        text_for_embedding = text_description or request.text_description or ocr_text
 
         # Compute text embedding
         text_embedding = None
@@ -282,6 +292,7 @@ async def compute_embedding(request: ComputeEmbeddingRequest) -> ComputeEmbeddin
             success=True,
             image_embedding=image_embedding,
             text_embedding=text_embedding,
+            text_description=text_description,
             ocr_text=ocr_text,
             ocr_confidence=ocr_confidence,
             processing_time_ms=processing_time_ms,
@@ -290,6 +301,55 @@ async def compute_embedding(request: ComputeEmbeddingRequest) -> ComputeEmbeddin
     except Exception as e:
         logger.error(f"Embedding computation failed: {e}", exc_info=True)
         return ComputeEmbeddingResponse(
+            success=False,
+            error=str(e),
+            processing_time_ms=(time.time() - start_time) * 1000,
+        )
+
+
+@router.post("/compute-text", response_model=ComputeTextEmbeddingResponse)
+async def compute_text_embedding_endpoint(
+    request: ComputeTextEmbeddingRequest,
+) -> ComputeTextEmbeddingResponse:
+    """Compute CLIP text embedding for semantic search.
+
+    This endpoint encodes text using CLIP's text encoder, producing a
+    512-dimensional embedding in the same space as CLIP image embeddings.
+    This enables semantic text-to-image search against indexed visual content.
+
+    Use this for:
+    - Searching visual content by text description
+    - Finding patterns/UI elements that match a query
+    """
+    start_time = time.time()
+
+    try:
+        if not request.text or not request.text.strip():
+            return ComputeTextEmbeddingResponse(
+                success=False,
+                error="Text cannot be empty",
+                processing_time_ms=(time.time() - start_time) * 1000,
+            )
+
+        embedding = compute_clip_text_embedding(request.text)
+
+        if embedding is None:
+            return ComputeTextEmbeddingResponse(
+                success=False,
+                error="Failed to compute embedding",
+                processing_time_ms=(time.time() - start_time) * 1000,
+            )
+
+        return ComputeTextEmbeddingResponse(
+            success=True,
+            embedding=embedding,
+            embedding_dim=len(embedding),
+            processing_time_ms=(time.time() - start_time) * 1000,
+        )
+
+    except Exception as e:
+        logger.error(f"Text embedding computation failed: {e}", exc_info=True)
+        return ComputeTextEmbeddingResponse(
             success=False,
             error=str(e),
             processing_time_ms=(time.time() - start_time) * 1000,
@@ -344,8 +404,14 @@ async def compute_embeddings_batch(
             if request.extract_ocr:
                 ocr_text, ocr_confidence = extract_ocr_text(image)
 
-            # Use provided text description or OCR text for text embedding
-            text_for_embedding = text_description or ocr_text
+            # Generate text description from name and OCR
+            generated_description = generate_text_description(
+                name=text_description,  # text_description from request is used as name
+                ocr_text=ocr_text,
+            )
+
+            # Use generated description for text embedding, fallback to provided or OCR
+            text_for_embedding = generated_description or text_description or ocr_text
 
             # Compute text embedding
             text_embedding = None
@@ -358,6 +424,7 @@ async def compute_embeddings_batch(
                     success=True,
                     image_embedding=image_embedding,
                     text_embedding=text_embedding,
+                    text_description=generated_description,
                     ocr_text=ocr_text,
                     ocr_confidence=ocr_confidence,
                 )

@@ -31,6 +31,9 @@ from app.routes.embeddings import router as embeddings_router
 from app.routes.rag import router as rag_router
 from app.routes.snapshot_search import router as snapshot_search_router
 
+# Import Pathfinding router
+from app.routes.pathfinding import router as pathfinding_router
+
 # Import Snapshot API routers
 from app.routes.snapshots import router as snapshots_router
 
@@ -194,6 +197,9 @@ app.include_router(capture_router, prefix="/api")
 
 # Include RAG router (RAG element management and search)
 app.include_router(rag_router, prefix="/api")
+
+# Include Pathfinding router (path validation for GO_TO_STATE)
+app.include_router(pathfinding_router, prefix="/api")
 
 
 # All user/project management endpoints are handled by qontinui-web/backend
