@@ -29,6 +29,10 @@ class Settings(BaseSettings):
     REDIS_PORT: int = 6379
     REDIS_DB: int = 0
 
+    # Qontinui Web Backend (for historical data in integration testing)
+    # This is the URL of the qontinui-web backend that stores historical execution data
+    QONTINUI_WEB_URL: str = "http://localhost:8000"
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

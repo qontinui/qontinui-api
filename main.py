@@ -30,6 +30,9 @@ from app.routes.embeddings import router as embeddings_router
 # Import Pathfinding router
 from app.routes.pathfinding import router as pathfinding_router
 
+# Import Integration Testing router
+from app.routes.integration_testing import router as integration_testing_router
+
 # Import RAG API router
 from app.routes.rag import router as rag_router
 from app.routes.snapshot_search import router as snapshot_search_router
@@ -68,6 +71,12 @@ from state_discovery_api import router as state_discovery_router
 
 # Logger for this module
 logger = logging.getLogger(__name__)
+
+# Constants
+DEFAULT_SESSION_TTL = 3600  # Session TTL in seconds (1 hour)
+DEFAULT_SIMILARITY_THRESHOLD = 0.8  # Default template matching similarity
+CONSENSUS_THRESHOLD = 0.7  # Threshold for multi-template consensus matching
+NMS_OVERLAP_THRESHOLD = 0.3  # Non-maximum suppression overlap threshold
 
 app = FastAPI(
     title="Qontinui API",
@@ -108,7 +117,7 @@ redis_client = redis.Redis(
 
 
 # Redis Session Storage Helper Functions
-def save_session(session_id: str, session: "MockSession", ttl: int = 3600):
+def save_session(session_id: str, session: "MockSession", ttl: int = DEFAULT_SESSION_TTL):
     """
     Save session to Redis with TTL (default 1 hour).
 
@@ -201,6 +210,9 @@ app.include_router(rag_router, prefix="/api")
 # Include Pathfinding router (path validation for GO_TO_STATE)
 app.include_router(pathfinding_router, prefix="/api")
 
+# Include Integration Testing router (model-based GUI automation testing)
+app.include_router(integration_testing_router, prefix="/api/v1")
+
 
 # All user/project management endpoints are handled by qontinui-web/backend
 # This API focuses on stateless qontinui library operations
@@ -229,7 +241,7 @@ app.add_middleware(
 class FindRequest(BaseModel):
     screenshot: str  # base64 encoded
     template: str  # base64 encoded
-    similarity: float = 0.8
+    similarity: float = DEFAULT_SIMILARITY_THRESHOLD
     search_region: dict[str, int] | None = None  # {x, y, width, height}
     find_all: bool = False
 
@@ -237,7 +249,7 @@ class FindRequest(BaseModel):
 class StateDetectionRequest(BaseModel):
     screenshot: str  # base64 encoded
     states: list[dict[str, Any]]  # State definitions
-    similarity: float = 0.8
+    similarity: float = DEFAULT_SIMILARITY_THRESHOLD
 
 
 class MockExecutionRequest(BaseModel):
@@ -284,7 +296,7 @@ class CreateStateImageRequest(BaseModel):
     name: str
     patterns: list[dict[str, Any]]  # Pattern data from optimization results
     strategy_type: str
-    similarity_threshold: float = 0.8
+    similarity_threshold: float = DEFAULT_SIMILARITY_THRESHOLD
 
 
 class MatchResponse(BaseModel):
@@ -758,11 +770,10 @@ async def _detect_and_activate_states(session: MockSession):
 
     # Just use initial states for mock execution
     # Real state detection would need proper state conversion first
-    pass
 
 
 @app.post("/mock/detect_current_states")
-async def detect_current_states(session_id: str, similarity: float = 0.8):
+async def detect_current_states(session_id: str, similarity: float = DEFAULT_SIMILARITY_THRESHOLD):
     """Detect states in the current screenshot of the session"""
     session = get_session(session_id)
     if not session:
@@ -1276,7 +1287,7 @@ class WorkflowExecutionRequest(BaseModel):
     states: list[ConfigState]  # State definitions using Pydantic schema
     categories: list[dict[str, Any]] = []  # Category definitions
     mode: str = "hybrid"  # "hybrid" or "full_mock"
-    similarity: float = 0.8
+    similarity: float = DEFAULT_SIMILARITY_THRESHOLD
 
 
 class WorkflowExecutionResponse(BaseModel):
@@ -1422,7 +1433,7 @@ async def execute_workflow_step(session_id: str, action: ConfigAction):
         if state_image:
             try:
                 # Use real pattern matching
-                similarity = 0.8
+                similarity = DEFAULT_SIMILARITY_THRESHOLD
                 if hasattr(action.config, "similarity"):
                     similarity = action.config.similarity
 
@@ -1630,11 +1641,11 @@ async def optimize_pattern(request: PatternOptimizationRequest):
         min_similarity = np.min(similarity_matrix[np.triu_indices(num_patterns, k=1)])
         max_similarity = np.max(similarity_matrix[np.triu_indices(num_patterns, k=1)])
 
-        # Find outliers (patterns with mean similarity < 0.7)
+        # Find outliers (patterns with mean similarity below threshold)
         outliers = []
         for i in range(num_patterns):
             row_mean = (np.sum(similarity_matrix[i, :]) - 1) / (num_patterns - 1)  # Exclude self
-            if row_mean < 0.7:
+            if row_mean < CONSENSUS_THRESHOLD:
                 outliers.append(i)
 
         results["statistics"] = {
