@@ -455,9 +455,9 @@ class YOLOv8InferenceEngine(InferenceEngine):
             result = results[0]
 
             if result.boxes is not None:
-                boxes = result.boxes.xyxy.cpu().numpy()
-                classes = result.boxes.cls.cpu().numpy()
-                confidences = result.boxes.conf.cpu().numpy()
+                boxes = result.boxes.xyxy.cpu().numpy()  # type: ignore[union-attr]
+                classes = result.boxes.cls.cpu().numpy()  # type: ignore[union-attr]
+                confidences = result.boxes.conf.cpu().numpy()  # type: ignore[union-attr]
 
                 for box, cls, conf in zip(boxes, classes, confidences, strict=False):
                     detections.append(
@@ -641,6 +641,7 @@ def main():
             raise ValueError(f"Cannot auto-detect model type for {args.model.suffix}")
 
     # Create inference engine
+    engine: InferenceEngine
     if model_type == "onnx":
         engine = ONNXInferenceEngine(
             model_path=args.model,
