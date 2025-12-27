@@ -410,11 +410,9 @@ async def run_integration_test(
 
         # Set execution mode to MOCK
         try:
-            from qontinui.config.execution_mode import (
-                ExecutionModeConfig,
-                MockMode,
-                set_execution_mode,
-            )
+            from qontinui.config.execution_mode import (ExecutionModeConfig,
+                                                        MockMode,
+                                                        set_execution_mode)
 
             set_execution_mode(ExecutionModeConfig(mode=MockMode.MOCK))
             logger.info("Execution mode set to MOCK")
@@ -457,7 +455,8 @@ async def run_integration_test(
         # Get historical data client for reliability insights
         historical_client = None
         try:
-            from qontinui.mock.historical_data_client import get_historical_data_client
+            from qontinui.mock.historical_data_client import \
+                get_historical_data_client
 
             historical_client = get_historical_data_client()
         except ImportError as e:
@@ -742,7 +741,8 @@ async def health_check() -> dict[str, Any]:
         pass
 
     try:
-        from qontinui.mock.historical_data_client import get_historical_data_client
+        from qontinui.mock.historical_data_client import \
+            get_historical_data_client
 
         client = get_historical_data_client()
         historical_client_available = client.enabled

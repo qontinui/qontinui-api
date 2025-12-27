@@ -13,7 +13,8 @@ The ExecutionManager and execution logic remain in qontinui - only HTTP routing 
 NO backward compatibility - clean FastAPI router pattern.
 """
 
-from . import execution_router, health_router, history_router, state_router, websocket_router
+from . import (execution_router, health_router, history_router, state_router,
+               websocket_router)
 
 __all__ = [
     "health_router",

@@ -30,13 +30,8 @@ class ExportService:
             RAGExportData containing all elements, states, and transitions
         """
         # Import here to avoid circular dependency
-        from app.routes.rag import (
-            RAGElement,
-            RAGExportData,
-            RAGExportMetadata,
-            RAGState,
-            RAGTransition,
-        )
+        from app.routes.rag import (RAGElement, RAGExportData,
+                                    RAGExportMetadata, RAGState, RAGTransition)
 
         project = self.project_service.get_project(db, project_id)
         rag_config = self.project_service.get_rag_config(project)

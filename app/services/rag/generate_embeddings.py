@@ -17,17 +17,9 @@ from pathlib import Path
 from typing import Any
 
 from PIL import Image
-
-from qontinui.rag import (
-    BoundingBox,
-    CLIPEmbedder,
-    DINOv2Embedder,
-    GUIElementChunk,
-    QdrantLocalDB,
-    RAGIndex,
-    TextDescriptionGenerator,
-    TextEmbedder,
-)
+from qontinui.rag import (BoundingBox, CLIPEmbedder, DINOv2Embedder,
+                          GUIElementChunk, QdrantLocalDB, RAGIndex,
+                          TextDescriptionGenerator, TextEmbedder)
 
 
 def log_progress(status: str, **kwargs: Any) -> None:
