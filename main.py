@@ -1307,7 +1307,11 @@ async def execute_workflow(request: WorkflowExecutionRequest):
     - Uses real pattern matching on provided screenshots
     - Actions that don't require GUI interaction are mocked
     """
-    from qontinui.config.execution_mode import ExecutionModeConfig, MockMode, set_execution_mode
+    from qontinui.config.execution_mode import (
+        ExecutionModeConfig,
+        MockMode,
+        set_execution_mode,
+    )
 
     # Set execution mode based on request
     if request.mode == "full_mock":

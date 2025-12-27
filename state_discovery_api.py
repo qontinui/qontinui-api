@@ -41,7 +41,10 @@ from qontinui.discovery import (
 )
 from qontinui.discovery.deletion_manager import DeletionManager
 from qontinui.discovery.models import AnalysisConfig, DeleteOptions
-from qontinui.discovery.state_construction.state_builder import StateBuilder, TransitionInfo
+from qontinui.discovery.state_construction.state_builder import (
+    StateBuilder,
+    TransitionInfo,
+)
 
 # Import state detection components (still needed for direct detection endpoints)
 from qontinui.discovery.state_detection.differential_consistency_detector import (

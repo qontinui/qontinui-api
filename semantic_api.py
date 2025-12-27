@@ -138,7 +138,9 @@ class RealSemanticProcessor:
             try:
                 # Lazy load EasyOCREngine to avoid NumPy conflicts
                 try:
-                    from qontinui.hal.implementations.easyocr_engine import EasyOCREngine
+                    from qontinui.hal.implementations.easyocr_engine import (
+                        EasyOCREngine,
+                    )
 
                     self.ocr_engine = EasyOCREngine()
                 except ImportError:
