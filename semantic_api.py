@@ -19,8 +19,7 @@ from pydantic import BaseModel
 try:
     # Lazy import to avoid NumPy version conflicts
     from qontinui.perception.segmentation import ScreenSegmenter
-    from qontinui.semantic.description.clip_generator import \
-        CLIPDescriptionGenerator
+    from qontinui.semantic.description.clip_generator import CLIPDescriptionGenerator
 
     QONTINUI_AVAILABLE = True
     EasyOCREngine = None  # Will be imported later if needed
@@ -31,8 +30,7 @@ except ImportError:
 
 # Import SAM3 processor
 try:
-    from qontinui.semantic.processors.sam3_processor import (HAS_SAM3,
-                                                             SAM3Processor)
+    from qontinui.semantic.processors.sam3_processor import HAS_SAM3, SAM3Processor
 
     SAM3_AVAILABLE = HAS_SAM3
 except ImportError:
@@ -140,8 +138,7 @@ class RealSemanticProcessor:
             try:
                 # Lazy load EasyOCREngine to avoid NumPy conflicts
                 try:
-                    from qontinui.hal.implementations.easyocr_engine import \
-                        EasyOCREngine
+                    from qontinui.hal.implementations.easyocr_engine import EasyOCREngine
 
                     self.ocr_engine = EasyOCREngine()
                 except ImportError:
