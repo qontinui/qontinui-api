@@ -1316,8 +1316,8 @@ async def find_elements(
                         mask_data_b64 = (
                             f"data:image/png;base64,{base64.b64encode(mask_buffer.read()).decode()}"
                         )
-                    except Exception as mask_err:
-                        print(f"Warning: Failed to encode mask for segment {i}: {mask_err}")
+                    except Exception:
+                        logger.warning("Failed to encode mask for segment {i}: {mask_err}")
 
                 response_segments.append(
                     RAGFindSegment(

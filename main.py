@@ -129,8 +129,8 @@ def save_session(session_id: str, session: "MockSession", ttl: int = DEFAULT_SES
     """
     try:
         redis_client.setex(f"mock_session:{session_id}", ttl, json.dumps(session.dict()))
-    except Exception as e:
-        print(f"Error saving session {session_id} to Redis: {e}")
+    except Exception:
+        logger.error("Error saving session {session_id} to Redis: {e}")
         raise
 
 
@@ -149,8 +149,8 @@ def get_session(session_id: str) -> Optional["MockSession"]:
         if data:
             return MockSession(**json.loads(data))  # type: ignore[arg-type]
         return None
-    except Exception as e:
-        print(f"Error retrieving session {session_id} from Redis: {e}")
+    except Exception:
+        logger.error("Error retrieving session {session_id} from Redis: {e}")
         return None
 
 
@@ -163,8 +163,8 @@ def delete_session(session_id: str):
     """
     try:
         redis_client.delete(f"mock_session:{session_id}")
-    except Exception as e:
-        print(f"Error deleting session {session_id} from Redis: {e}")
+    except Exception:
+        logger.error("Error deleting session {session_id} from Redis: {e}")
         raise
 
 
@@ -178,8 +178,8 @@ def list_sessions() -> list[str]:
     try:
         keys = redis_client.keys("mock_session:*")
         return [key.replace("mock_session:", "") for key in keys]  # type: ignore[misc, union-attr]
-    except Exception as e:
-        print(f"Error listing sessions from Redis: {e}")
+    except Exception:
+        logger.error("Error listing sessions from Redis: {e}")
         return []
 
 
@@ -377,17 +377,17 @@ async def find_image(request: Request, find_request: FindRequest):
         from qontinui.find.matchers import TemplateMatcher
         from static_screenshot_provider import StaticScreenshotProvider
 
-        print(f"[find] Received request - similarity: {find_request.similarity}")
-        print(f"[find] Screenshot length: {len(find_request.screenshot)}")
-        print(f"[find] Template length: {len(find_request.template)}")
-        print(f"[find] Search region: {find_request.search_region}")
+        logger.debug("[find] Received request - similarity: {find_request.similarity}")
+        logger.debug("[find] Screenshot length: {len(find_request.screenshot)}")
+        logger.debug("[find] Template length: {len(find_request.template)}")
+        logger.debug("[find] Search region: {find_request.search_region}")
 
         # Convert base64 to PIL and Qontinui Images
         screenshot_pil = base64_to_pil_image(find_request.screenshot)
         template_img = base64_to_qontinui_image(find_request.template, "template")
 
-        print(f"[find] Screenshot image size: {screenshot_pil.size}")
-        print(f"[find] Template image size: {template_img.width}x{template_img.height}")
+        logger.debug("[find] Screenshot image size: {screenshot_pil.size}")
+        logger.debug("[find] Template image size: {template_img.width}x{template_img.height}")
 
         # Create Pattern from template image
         template_pattern = Pattern.from_image(template_img)
@@ -418,17 +418,17 @@ async def find_image(request: Request, find_request: FindRequest):
                 find_request.search_region["width"],
                 find_request.search_region["height"],
             )
-            print(f"[find] Search region set: {search_region}")
+            logger.debug("[find] Search region set: {search_region}")
 
         # Execute find operation
-        print(f"[find] Executing find operation with similarity={find_request.similarity}...")
+        logger.debug("[find] Executing find operation with similarity={find_request.similarity}...")
         match_list = executor.execute(
             pattern=template_pattern,
             search_region=search_region,
             similarity=find_request.similarity,
             find_all=False,
         )
-        print(f"[find] Found {len(match_list)} matches")
+        logger.debug("[find] Found {len(match_list)} matches")
 
         if match_list and len(match_list) > 0:
             match = match_list[0]
@@ -436,7 +436,7 @@ async def find_image(request: Request, find_request: FindRequest):
                 f"[find] Match found! Score: {match.similarity if hasattr(match, 'similarity') else 'N/A'}"
             )
             response = match_to_response(match)
-            print(f"[find] Response: {response}")
+            logger.debug("[find] Response: {response}")
             return response
 
         # No match found
@@ -444,7 +444,7 @@ async def find_image(request: Request, find_request: FindRequest):
         return MatchResponse(found=False, region=None, score=0.0, center=None)
 
     except Exception as e:
-        print(f"[find] Error: {str(e)}")
+        logger.debug("[find] Error: {str(e)}")
         import traceback
 
         traceback.print_exc()
@@ -464,7 +464,9 @@ async def find_all_images(request: Request, find_request: FindRequest):
         from qontinui.find.matchers import TemplateMatcher
         from static_screenshot_provider import StaticScreenshotProvider
 
-        print(f"[find_all] Starting pattern matching with similarity={find_request.similarity}")
+        logger.debug(
+            "[find_all] Starting pattern matching with similarity={find_request.similarity}"
+        )
 
         # Convert base64 to PIL and Qontinui Images
         screenshot_pil = base64_to_pil_image(find_request.screenshot)
@@ -511,10 +513,10 @@ async def find_all_images(request: Request, find_request: FindRequest):
             similarity=find_request.similarity,
             find_all=True,
         )
-        print(f"[find_all] Found {len(match_list)} matches")
+        logger.debug("[find_all] Found {len(match_list)} matches")
 
         if match_list and len(match_list) > 0:
-            print(f"[find_all] Converting {len(match_list)} matches to responses")
+            logger.debug("[find_all] Converting {len(match_list)} matches to responses")
             match_responses = [match_to_response(m) for m in match_list]
             print("[find_all] Matches converted successfully")
             return MatchesResponse(
@@ -530,7 +532,7 @@ async def find_all_images(request: Request, find_request: FindRequest):
         import traceback
 
         # Log full traceback for debugging
-        print(f"ERROR in find_all_images: {str(e)}")
+        logger.error("in find_all_images: {str(e)}")
         print(traceback.format_exc())
         raise HTTPException(status_code=500, detail=str(e)) from e
 
@@ -1307,11 +1309,7 @@ async def execute_workflow(request: WorkflowExecutionRequest):
     - Uses real pattern matching on provided screenshots
     - Actions that don't require GUI interaction are mocked
     """
-    from qontinui.config.execution_mode import (
-        ExecutionModeConfig,
-        MockMode,
-        set_execution_mode,
-    )
+    from qontinui.config.execution_mode import ExecutionModeConfig, MockMode, set_execution_mode
 
     # Set execution mode based on request
     if request.mode == "full_mock":

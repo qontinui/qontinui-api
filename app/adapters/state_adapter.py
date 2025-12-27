@@ -5,10 +5,13 @@ This adapter bridges the gap between the frontend's state representation
 and the qontinui library's State class requirements.
 """
 
+import logging
 from typing import Any
 
 from qontinui.model.element import Image as QontinuiImage
 from qontinui.model.state import State as QontinuiState
+
+logger = logging.getLogger(__name__)
 
 
 def convert_frontend_state_to_qontinui(frontend_state: dict[str, Any]) -> QontinuiState:
@@ -59,9 +62,9 @@ def convert_frontend_state_to_qontinui(frontend_state: dict[str, Any]) -> Qontin
                     # Convert base64 to qontinui Image
                     image = QontinuiImage.from_base64(base64_str)  # type: ignore[attr-defined]
                     qontinui_images.append(image)
-                except Exception as e:
+                except Exception:
                     # Log error but continue processing other images
-                    print(f"Warning: Failed to convert image in state '{state_name}': {e}")
+                    logger.warning("Failed to convert image in state '{state_name}': {e}")
                     continue
 
     # Create State object
@@ -102,7 +105,7 @@ def convert_multiple_states(frontend_states: list[dict[str, Any]]) -> list[Qonti
         except Exception as e:
             # Log error but continue processing other states
             state_id = state_dict.get("id", state_dict.get("name", "unknown"))
-            print(f"Error converting state '{state_id}': {e}")
+            logger.error("Error converting state '%s': %s", state_id, e)
             continue
 
     return converted_states

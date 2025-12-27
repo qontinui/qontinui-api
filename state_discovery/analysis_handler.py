@@ -44,7 +44,7 @@ class AnalysisHandler:
         3. Reports progress via WebSocket
         4. Returns results
         """
-        print(f"[ANALYSIS] Starting analysis {analysis_id}")
+        logger.debug("[ANALYSIS] Starting analysis {analysis_id}")
         logger.info(f"Starting analysis {analysis_id} with {len(upload.screenshots)} screenshots")
 
         try:
@@ -63,7 +63,7 @@ class AnalysisHandler:
             await manager.send_progress(analysis_id, "preparation", 10, "Screenshots prepared")
 
             # Create and run analyzer
-            print(f"[ANALYSIS] Creating analyzer for {analysis_id}")
+            logger.debug("[ANALYSIS] Creating analyzer for {analysis_id}")
             analyzer = PixelStabilityMatrixAnalyzer(config)
 
             await manager.send_progress(
@@ -72,11 +72,11 @@ class AnalysisHandler:
 
             # Run analysis
             start_time = time.time()
-            print(f"[ANALYSIS] Running analyzer for {analysis_id}")
+            logger.debug("[ANALYSIS] Running analyzer for {analysis_id}")
             result = analyzer.analyze_screenshots(screenshots, region)
             elapsed = time.time() - start_time
 
-            print(f"[ANALYSIS] Analysis complete for {analysis_id} in {elapsed:.2f}s")
+            logger.debug("[ANALYSIS] Analysis complete for {analysis_id} in {elapsed:.2f}s")
             logger.info(
                 f"Analysis {analysis_id} completed in {elapsed:.2f}s: "
                 f"{len(result.state_images)} state images, {len(result.states)} states"
@@ -96,7 +96,7 @@ class AnalysisHandler:
 
         except Exception as e:
             error_msg = f"Analysis failed: {str(e)}"
-            print(f"[ANALYSIS] Error in {analysis_id}: {error_msg}")
+            logger.debug("[ANALYSIS] Error in {analysis_id}: {error_msg}")
             logger.error(f"Analysis {analysis_id} failed: {e}", exc_info=True)
 
             # Send error to client
@@ -150,7 +150,7 @@ class BackgroundTaskRunner:
         region: tuple[int, int, int, int] | None = None,
     ):
         """Synchronous wrapper for running analysis in background thread."""
-        print(f"[RUNNER] Starting sync analysis for {analysis_id}")
+        logger.debug("[RUNNER] Starting sync analysis for {analysis_id}")
         logger.info(f"Starting background analysis for {analysis_id}")
 
         # Create new event loop for this thread
@@ -159,20 +159,20 @@ class BackgroundTaskRunner:
 
         try:
             # Run the async analysis
-            print(f"[RUNNER] Running async analysis for {analysis_id}")
+            logger.debug("[RUNNER] Running async analysis for {analysis_id}")
             loop.run_until_complete(
                 self.handler.execute_analysis(analysis_id, upload, config, region)
             )
-            print(f"[RUNNER] Completed analysis for {analysis_id}")
+            logger.debug("[RUNNER] Completed analysis for {analysis_id}")
             logger.info(f"Background analysis completed for {analysis_id}")
 
         except Exception as e:
-            print(f"[RUNNER] Error in analysis {analysis_id}: {e}")
+            logger.debug("[RUNNER] Error in analysis {analysis_id}: {e}")
             logger.error(f"Background analysis failed for {analysis_id}: {e}", exc_info=True)
 
         finally:
             loop.close()
-            print(f"[RUNNER] Closed event loop for {analysis_id}")
+            logger.debug("[RUNNER] Closed event loop for {analysis_id}")
 
 
 # Global instance

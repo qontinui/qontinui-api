@@ -41,10 +41,7 @@ from qontinui.discovery import (
 )
 from qontinui.discovery.deletion_manager import DeletionManager
 from qontinui.discovery.models import AnalysisConfig, DeleteOptions
-from qontinui.discovery.state_construction.state_builder import (
-    StateBuilder,
-    TransitionInfo,
-)
+from qontinui.discovery.state_construction.state_builder import StateBuilder, TransitionInfo
 
 # Import state detection components (still needed for direct detection endpoints)
 from qontinui.discovery.state_detection.differential_consistency_detector import (
@@ -467,8 +464,10 @@ def run_analysis_sync(
     region_offset: tuple | None = None,
 ):
     """Run analysis in background (sync wrapper for background tasks)."""
-    print(f"[BACKGROUND TASK] Starting run_analysis_sync for {analysis_id}")
-    print(f"[BACKGROUND TASK] Screenshots: {len(screenshots)}, Region offset: {region_offset}")
+    logger.debug("[BACKGROUND TASK] Starting run_analysis_sync for {analysis_id}")
+    logger.debug(
+        "[BACKGROUND TASK] Screenshots: {len(screenshots)}, Region offset: {region_offset}"
+    )
     logger.info(f"[BACKGROUND TASK] Starting run_analysis_sync for {analysis_id}")
     logger.info(
         f"[BACKGROUND TASK] Screenshots: {len(screenshots)}, Region offset: {region_offset}"
@@ -480,14 +479,14 @@ def run_analysis_sync(
     asyncio.set_event_loop(loop)
 
     try:
-        print(f"[BACKGROUND TASK] Running async analysis for {analysis_id}")
+        logger.debug("[BACKGROUND TASK] Running async analysis for {analysis_id}")
         logger.info(f"[BACKGROUND TASK] Running async analysis for {analysis_id}")
         # Run the async function
         loop.run_until_complete(run_analysis(analysis_id, screenshots, config, region_offset))
-        print(f"[BACKGROUND TASK] Analysis complete for {analysis_id}")
+        logger.debug("[BACKGROUND TASK] Analysis complete for {analysis_id}")
         logger.info(f"[BACKGROUND TASK] Analysis complete for {analysis_id}")
     except Exception as e:
-        print(f"[BACKGROUND TASK] Error in run_analysis_sync: {e}")
+        logger.debug("[BACKGROUND TASK] Error in run_analysis_sync: {e}")
         logger.error(f"[BACKGROUND TASK] Error in run_analysis_sync: {e}")
         import traceback
 
@@ -496,7 +495,7 @@ def run_analysis_sync(
     finally:
         # Clean up the loop
         loop.close()
-        print(f"[BACKGROUND TASK] Closed event loop for {analysis_id}")
+        logger.debug("[BACKGROUND TASK] Closed event loop for {analysis_id}")
         logger.info(f"[BACKGROUND TASK] Closed event loop for {analysis_id}")
 
 

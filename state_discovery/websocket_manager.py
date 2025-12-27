@@ -26,10 +26,10 @@ class ConnectionManager:
             await websocket.accept()
             self.active_connections[analysis_id] = websocket
             logger.info(f"WebSocket connected for analysis {analysis_id}")
-            print(f"[WS] Connected: {analysis_id}")
+            logger.debug("[WS] Connected: {analysis_id}")
         except Exception as e:
             logger.error(f"Failed to connect WebSocket for {analysis_id}: {e}")
-            print(f"[WS] Connection failed for {analysis_id}: {e}")
+            logger.debug("[WS] Connection failed for {analysis_id}: {e}")
             raise
 
     def disconnect(self, analysis_id: str):
@@ -37,13 +37,13 @@ class ConnectionManager:
         if analysis_id in self.active_connections:
             del self.active_connections[analysis_id]
             logger.info(f"WebSocket disconnected for analysis {analysis_id}")
-            print(f"[WS] Disconnected: {analysis_id}")
+            logger.debug("[WS] Disconnected: {analysis_id}")
 
     async def send_update(self, analysis_id: str, message: dict[str, Any]):
         """Send an update message to a specific connection."""
         if analysis_id not in self.active_connections:
             logger.warning(f"No active connection for analysis {analysis_id}")
-            print(f"[WS] No connection for {analysis_id}")
+            logger.debug("[WS] No connection for {analysis_id}")
             return
 
         websocket = self.active_connections[analysis_id]
@@ -51,10 +51,10 @@ class ConnectionManager:
             message_str = json.dumps(message)
             await websocket.send_text(message_str)
             logger.debug(f"Sent update to {analysis_id}: {message.get('type')}")
-            print(f"[WS] Sent to {analysis_id}: {message.get('type')}")
+            logger.debug("[WS] Sent to {analysis_id}: {message.get('type')}")
         except Exception as e:
             logger.error(f"Failed to send update to {analysis_id}: {e}")
-            print(f"[WS] Send failed to {analysis_id}: {e}")
+            logger.debug("[WS] Send failed to {analysis_id}: {e}")
             self.disconnect(analysis_id)
 
     async def send_progress(self, analysis_id: str, stage: str, percentage: int, message: str):

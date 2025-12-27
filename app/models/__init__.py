@@ -9,12 +9,7 @@ from app.models.capture import (
     InputEventType,
     StorageBackend,
 )
-from app.models.snapshot import (
-    SnapshotAction,
-    SnapshotMatch,
-    SnapshotPattern,
-    SnapshotRun,
-)
+from app.models.snapshot import SnapshotAction, SnapshotMatch, SnapshotPattern, SnapshotRun
 
 __all__ = [
     # Snapshot models

@@ -73,7 +73,7 @@ class UploadStorage:
         self.uploads[upload_id] = upload
 
         logger.info(f"Stored upload {upload_id} with {len(screenshots)} screenshots")
-        print(f"[STORAGE] Stored {upload_id}: {len(screenshots)} screenshots")
+        logger.debug("[STORAGE] Stored {upload_id}: {len(screenshots)} screenshots")
 
         return upload_id
 
@@ -82,10 +82,10 @@ class UploadStorage:
         upload = self.uploads.get(upload_id)
         if upload:
             logger.debug(f"Retrieved upload {upload_id}")
-            print(f"[STORAGE] Retrieved {upload_id}")
+            logger.debug("[STORAGE] Retrieved {upload_id}")
         else:
             logger.warning(f"Upload {upload_id} not found")
-            print(f"[STORAGE] Not found: {upload_id}")
+            logger.debug("[STORAGE] Not found: {upload_id}")
         return upload
 
     def delete_upload(self, upload_id: str) -> bool:
@@ -93,7 +93,7 @@ class UploadStorage:
         if upload_id in self.uploads:
             del self.uploads[upload_id]
             logger.info(f"Deleted upload {upload_id}")
-            print(f"[STORAGE] Deleted {upload_id}")
+            logger.debug("[STORAGE] Deleted {upload_id}")
             return True
         return False
 
