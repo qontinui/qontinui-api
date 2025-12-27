@@ -431,8 +431,8 @@ async def start_analysis(request: AnalysisRequest, background_tasks: BackgroundT
         raise HTTPException(status_code=400, detail=f"Invalid analysis configuration: {e}") from e
 
     # Start analysis in background
-    print(f"[DEBUG] Adding background task for analysis {analysis_id}")
-    print(f"[DEBUG] Screenshots count: {len(screenshots)}, Config: {config}")
+    logger.debug(f"Adding background task for analysis {analysis_id}")
+    logger.debug(f"Screenshots count: {len(screenshots)}, Config: {config}")
     logger.info(f"Adding background task for analysis {analysis_id}")
     logger.info(f"Screenshots count: {len(screenshots)}, Config: {config}")
 
@@ -446,7 +446,7 @@ async def start_analysis(request: AnalysisRequest, background_tasks: BackgroundT
         ),
     )
 
-    print(f"[DEBUG] Background task added for {analysis_id}")
+    logger.debug(f"Background task added for {analysis_id}")
     logger.info(f"Background task added for {analysis_id}")
 
     return {

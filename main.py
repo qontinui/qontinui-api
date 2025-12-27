@@ -24,6 +24,7 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
 from app.adapters.state_adapter import convert_multiple_states
+from app.core.config import settings
 from app.routes.capture import router as capture_router
 from app.routes.embeddings import router as embeddings_router
 
@@ -218,18 +219,10 @@ app.include_router(integration_testing_router, prefix="/api/v1")
 # This API focuses on stateless qontinui library operations
 
 
-# CORS for frontend
+# CORS for frontend - origins configured via CORS_ORIGINS environment variable
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://localhost:3001",
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:3001",
-        # Allow frontend on Windows to access WSL backend
-        "http://172.27.67.252:3000",
-        "http://172.27.67.252:3001",
-    ],
+    allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

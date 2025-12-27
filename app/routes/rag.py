@@ -5,6 +5,8 @@ Manages RAG elements, states, and transitions stored in project rag_config.
 These endpoints interact with the main backend's database (qontinui_db).
 """
 
+import logging
+import os
 import uuid
 from datetime import datetime
 from typing import Any
@@ -26,8 +28,17 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Session, sessionmaker
 
+logger = logging.getLogger(__name__)
+
 # Create a separate engine for the main backend database
-BACKEND_DATABASE_URL = "postgresql://qontinui_user:qontinui_dev_password@localhost:5432/qontinui_db"
+# Database URL must be set via environment variable for security
+BACKEND_DATABASE_URL = os.environ.get("BACKEND_DATABASE_URL")
+if not BACKEND_DATABASE_URL:
+    raise RuntimeError(
+        "BACKEND_DATABASE_URL environment variable is not set. "
+        "This is required to connect to the main backend database."
+    )
+
 backend_engine = create_engine(BACKEND_DATABASE_URL, pool_pre_ping=True)
 BackendSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=backend_engine)
 
