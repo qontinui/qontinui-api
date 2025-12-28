@@ -8,6 +8,7 @@ These endpoints support:
 - Live screenshot capture from connected monitors
 """
 
+import asyncio
 import base64
 import io
 from datetime import datetime
@@ -583,6 +584,13 @@ async def get_available_monitors():
 async def capture_current_screenshot(
     monitor: int | None = Query(None, description="Monitor index (None for all monitors)"),
     quality: int = Query(95, ge=1, le=100, description="PNG compression level (1-100)"),
+    delay_seconds: float = Query(
+        0.0,
+        ge=0.0,
+        le=30.0,
+        description="Delay in seconds before capturing (0-30). "
+        "Useful for waiting for UI animations to settle.",
+    ),
 ):
     """Capture a screenshot from the current display.
 
@@ -593,11 +601,17 @@ async def capture_current_screenshot(
     Args:
         monitor: Monitor index (0-based). None captures all monitors combined.
         quality: PNG compression quality (1-100, higher = better quality, larger file)
+        delay_seconds: Delay in seconds before capturing (default 0, max 30).
+            This is a deterministic sleep that occurs before the screenshot is taken.
 
     Returns:
         Base64-encoded PNG screenshot with metadata.
     """
     try:
+        # Apply delay before capture if specified
+        if delay_seconds > 0:
+            await asyncio.sleep(delay_seconds)
+
         from qontinui.hal.factory import HALFactory
 
         screen_capture = HALFactory.get_screen_capture()
@@ -640,6 +654,13 @@ async def capture_current_screenshot(
 async def capture_current_screenshot_raw(
     monitor: int | None = Query(None, description="Monitor index (None for all monitors)"),
     quality: int = Query(95, ge=1, le=100, description="PNG compression level (1-100)"),
+    delay_seconds: float = Query(
+        0.0,
+        ge=0.0,
+        le=30.0,
+        description="Delay in seconds before capturing (0-30). "
+        "Useful for waiting for UI animations to settle.",
+    ),
 ):
     """Capture a screenshot and return as raw PNG image.
 
@@ -649,11 +670,16 @@ async def capture_current_screenshot_raw(
     Args:
         monitor: Monitor index (0-based). None captures all monitors combined.
         quality: PNG compression quality (1-100)
+        delay_seconds: Delay in seconds before capturing (default 0, max 30).
 
     Returns:
         Raw PNG image data with image/png content type.
     """
     try:
+        # Apply delay before capture if specified
+        if delay_seconds > 0:
+            await asyncio.sleep(delay_seconds)
+
         from qontinui.hal.factory import HALFactory
 
         screen_capture = HALFactory.get_screen_capture()
@@ -696,6 +722,13 @@ async def capture_screenshot_region(
     height: int = Query(..., gt=0, description="Region height in pixels"),
     monitor: int | None = Query(None, description="Monitor index for relative coordinates"),
     quality: int = Query(95, ge=1, le=100, description="PNG compression level"),
+    delay_seconds: float = Query(
+        0.0,
+        ge=0.0,
+        le=30.0,
+        description="Delay in seconds before capturing (0-30). "
+        "Useful for waiting for UI animations to settle.",
+    ),
 ):
     """Capture a specific region of the screen.
 
@@ -709,11 +742,16 @@ async def capture_screenshot_region(
         height: Region height in pixels
         monitor: Optional monitor index for relative coordinates
         quality: PNG compression quality (1-100)
+        delay_seconds: Delay in seconds before capturing (default 0, max 30).
 
     Returns:
         Raw PNG image data of the captured region.
     """
     try:
+        # Apply delay before capture if specified
+        if delay_seconds > 0:
+            await asyncio.sleep(delay_seconds)
+
         from qontinui.hal.factory import HALFactory
 
         screen_capture = HALFactory.get_screen_capture()
