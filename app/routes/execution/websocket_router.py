@@ -11,6 +11,7 @@ NO backward compatibility - clean FastAPI code.
 import logging
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+
 from qontinui.api import ExecutionEvent, ExecutionManager
 
 logger = logging.getLogger(__name__)

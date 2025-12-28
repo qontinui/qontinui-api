@@ -24,9 +24,22 @@ The design follows a hybrid approach:
 
 from enum import Enum as PyEnum
 
-from sqlalchemy import (BigInteger, Boolean, Column, DateTime, Enum, Float,
-                        ForeignKey, Index, Integer, Numeric, SmallInteger,
-                        String, Text, UniqueConstraint)
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    Column,
+    DateTime,
+    Enum,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    Numeric,
+    SmallInteger,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func

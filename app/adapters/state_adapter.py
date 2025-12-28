@@ -5,6 +5,7 @@ This adapter bridges the gap between the frontend's state representation
 and the qontinui library's State class requirements.
 """
 
+import binascii
 import logging
 from typing import Any
 
@@ -62,9 +63,11 @@ def convert_frontend_state_to_qontinui(frontend_state: dict[str, Any]) -> Qontin
                     # Convert base64 to qontinui Image
                     image = QontinuiImage.from_base64(base64_str)  # type: ignore[attr-defined]
                     qontinui_images.append(image)
-                except Exception:
-                    # Log error but continue processing other images
-                    logger.warning("Failed to convert image in state '{state_name}': {e}")
+                except (binascii.Error, ValueError, OSError) as e:
+                    # binascii.Error: Invalid base64 encoding
+                    # ValueError: Invalid image data
+                    # OSError: Image decoding error (from PIL)
+                    logger.warning(f"Failed to convert image in state '{state_name}': {e}")
                     continue
 
     # Create State object

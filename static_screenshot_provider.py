@@ -5,6 +5,7 @@ Used by the test API to find patterns in provided screenshots.
 """
 
 from PIL import Image
+
 from qontinui.find.screenshot import ScreenshotProvider
 from qontinui.model.element import Region
 

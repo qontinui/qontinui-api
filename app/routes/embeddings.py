@@ -13,14 +13,17 @@ from typing import Any
 
 from fastapi import APIRouter
 from PIL import Image as PILImage
+
 # Import shared schemas from qontinui-schemas
-from qontinui_schemas.api.rag import (BatchComputeEmbeddingRequest,
-                                      BatchComputeEmbeddingResponse,
-                                      BatchEmbeddingResult,
-                                      ComputeEmbeddingRequest,
-                                      ComputeEmbeddingResponse,
-                                      ComputeTextEmbeddingRequest,
-                                      ComputeTextEmbeddingResponse)
+from qontinui_schemas.api.rag import (
+    BatchComputeEmbeddingRequest,
+    BatchComputeEmbeddingResponse,
+    BatchEmbeddingResult,
+    ComputeEmbeddingRequest,
+    ComputeEmbeddingResponse,
+    ComputeTextEmbeddingRequest,
+    ComputeTextEmbeddingResponse,
+)
 
 logger = logging.getLogger(__name__)
 

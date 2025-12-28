@@ -18,11 +18,17 @@ NO backward compatibility - clean FastAPI code.
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException
+
 from qontinui.api import ExecutionManager
 
-from .models import (ActiveStatesResponse, AvailableTransitionsResponse,
-                     StateNavigationRequest, StateNavigationResponse,
-                     TransitionExecutionRequest, TransitionExecutionResponse)
+from .models import (
+    ActiveStatesResponse,
+    AvailableTransitionsResponse,
+    StateNavigationRequest,
+    StateNavigationResponse,
+    TransitionExecutionRequest,
+    TransitionExecutionResponse,
+)
 
 logger = logging.getLogger(__name__)
 

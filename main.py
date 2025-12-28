@@ -129,8 +129,8 @@ def save_session(session_id: str, session: "MockSession", ttl: int = DEFAULT_SES
     """
     try:
         redis_client.setex(f"mock_session:{session_id}", ttl, json.dumps(session.dict()))
-    except Exception:
-        logger.error("Error saving session {session_id} to Redis: {e}")
+    except redis.RedisError as e:
+        logger.error(f"Error saving session {session_id} to Redis: {e}")
         raise
 
 
@@ -149,8 +149,8 @@ def get_session(session_id: str) -> Optional["MockSession"]:
         if data:
             return MockSession(**json.loads(data))  # type: ignore[arg-type]
         return None
-    except Exception:
-        logger.error("Error retrieving session {session_id} from Redis: {e}")
+    except (redis.RedisError, json.JSONDecodeError) as e:
+        logger.error(f"Error retrieving session {session_id} from Redis: {e}")
         return None
 
 
@@ -163,8 +163,8 @@ def delete_session(session_id: str):
     """
     try:
         redis_client.delete(f"mock_session:{session_id}")
-    except Exception:
-        logger.error("Error deleting session {session_id} from Redis: {e}")
+    except redis.RedisError as e:
+        logger.error(f"Error deleting session {session_id} from Redis: {e}")
         raise
 
 
@@ -178,8 +178,8 @@ def list_sessions() -> list[str]:
     try:
         keys = redis_client.keys("mock_session:*")
         return [key.replace("mock_session:", "") for key in keys]  # type: ignore[misc, union-attr]
-    except Exception:
-        logger.error("Error listing sessions from Redis: {e}")
+    except redis.RedisError as e:
+        logger.error(f"Error listing sessions from Redis: {e}")
         return []
 
 

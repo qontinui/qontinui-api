@@ -14,7 +14,7 @@ from typing import Any
 
 from dotenv import load_dotenv
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 from sqlalchemy import (
     JSON,
     Boolean,
@@ -1095,7 +1095,7 @@ async def import_project(
             else:
                 rag_config["elements"][element.id] = element.model_dump()
                 imported += 1
-        except Exception as e:
+        except (ValidationError, KeyError, AttributeError) as e:
             errors.append(f"Failed to import element {element.id}: {str(e)}")
 
     # Import states
@@ -1109,7 +1109,7 @@ async def import_project(
             else:
                 rag_config["states"][state.id] = state.model_dump()
                 imported += 1
-        except Exception as e:
+        except (ValidationError, KeyError, AttributeError) as e:
             errors.append(f"Failed to import state {state.id}: {str(e)}")
 
     # Import transitions
@@ -1123,7 +1123,7 @@ async def import_project(
             else:
                 rag_config["transitions"][transition.id] = transition.model_dump()
                 imported += 1
-        except Exception as e:
+        except (ValidationError, KeyError, AttributeError) as e:
             errors.append(f"Failed to import transition {transition.id}: {str(e)}")
 
     save_rag_config(db, project, rag_config)
