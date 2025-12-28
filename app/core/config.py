@@ -18,6 +18,8 @@ class Settings(BaseSettings):
 
     # Database
     DATABASE_URL: str = "postgresql://user:password@localhost/qontinui"
+    # Backend database URL (for accessing qontinui-web backend database)
+    BACKEND_DATABASE_URL: str = "postgresql://user:password@localhost/qontinui"
 
     # API
     API_V1_STR: str = "/api"
@@ -74,6 +76,7 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=True,
+        extra="ignore",  # Allow extra env vars (e.g., BACKEND_DATABASE_URL used by rag.py)
     )
 
 

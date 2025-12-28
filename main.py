@@ -19,18 +19,6 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image as PILImage
 from pydantic import BaseModel
-from qontinui.actions import FindOptions
-# Import Pydantic schemas from qontinui library
-from qontinui.config.schema import Action as ConfigAction
-from qontinui.config.schema import Workflow
-# Import actual qontinui library
-from qontinui.find import Find
-from qontinui.json_executor.config_parser import State as ConfigState
-from qontinui.model.element import Image, Pattern, Region
-from qontinui.model.search_regions import SearchRegions
-from qontinui.model.state import StateImage
-from qontinui.model.state.state_store import StateStore
-from qontinui.state_management.manager import QontinuiStateManager
 from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
@@ -39,24 +27,46 @@ from app.adapters.state_adapter import convert_multiple_states
 from app.core.config import settings
 from app.routes.capture import router as capture_router
 from app.routes.embeddings import router as embeddings_router
+
 # Import Integration Testing router
 from app.routes.integration_testing import router as integration_testing_router
+
 # Import Pathfinding router
 from app.routes.pathfinding import router as pathfinding_router
+
 # Import RAG API router
 from app.routes.rag import router as rag_router
 from app.routes.snapshot_search import router as snapshot_search_router
+
 # Import Snapshot API routers
 from app.routes.snapshots import router as snapshots_router
+
 # Authentication is handled by qontinui-web/backend
 # This API is stateless and focuses on qontinui library operations
 # Import Mask and Pattern API router
 from mask_pattern_api import router as mask_pattern_router
+
 # Import Masked Patterns API router
 from masked_patterns_api import router as masked_patterns_router
+from qontinui.actions import FindOptions
+
+# Import Pydantic schemas from qontinui library
+from qontinui.config.schema import Action as ConfigAction
+from qontinui.config.schema import Workflow
+
+# Import actual qontinui library
+from qontinui.find import Find
+from qontinui.json_executor.config_parser import State as ConfigState
+from qontinui.model.element import Image, Pattern, Region
+from qontinui.model.search_regions import SearchRegions
+from qontinui.model.state import StateImage
+from qontinui.model.state.state_store import StateStore
+from qontinui.state_management.manager import QontinuiStateManager
+
 # Scheduler API removed - belongs in qontinui-web/backend with user auth
 # Import semantic API router
 from semantic_api import router as semantic_router
+
 # Import State Discovery API router
 from state_discovery_api import router as state_discovery_router
 
@@ -214,9 +224,9 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-    expose_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization", "X-Request-ID"],
+    expose_headers=["X-Request-ID"],
 )
 
 
@@ -365,7 +375,6 @@ async def find_image(request: Request, find_request: FindRequest):
         from qontinui.find.filters import SimilarityFilter
         from qontinui.find.find_executor import FindExecutor
         from qontinui.find.matchers import TemplateMatcher
-
         from static_screenshot_provider import StaticScreenshotProvider
 
         logger.debug("[find] Received request - similarity: {find_request.similarity}")
@@ -453,7 +462,6 @@ async def find_all_images(request: Request, find_request: FindRequest):
         from qontinui.find.filters import NMSFilter, SimilarityFilter
         from qontinui.find.find_executor import FindExecutor
         from qontinui.find.matchers import TemplateMatcher
-
         from static_screenshot_provider import StaticScreenshotProvider
 
         logger.debug(
@@ -1301,8 +1309,7 @@ async def execute_workflow(request: WorkflowExecutionRequest):
     - Uses real pattern matching on provided screenshots
     - Actions that don't require GUI interaction are mocked
     """
-    from qontinui.config.execution_mode import (ExecutionModeConfig, MockMode,
-                                                set_execution_mode)
+    from qontinui.config.execution_mode import ExecutionModeConfig, MockMode, set_execution_mode
 
     # Set execution mode based on request
     if request.mode == "full_mock":

@@ -4,15 +4,15 @@ from datetime import datetime
 from typing import Any
 
 from fastapi import HTTPException
-from sqlalchemy import (Boolean, Column, DateTime, ForeignKey, Integer, String,
-                        Text, create_engine)
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text, create_engine
 from sqlalchemy.dialects.postgresql import JSON, UUID
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Session, sessionmaker
 
+from app.core.config import settings
+
 # Create a separate engine for the main backend database
-BACKEND_DATABASE_URL = "postgresql://qontinui_user:qontinui_dev_password@localhost:5432/qontinui_db"
-backend_engine = create_engine(BACKEND_DATABASE_URL, pool_pre_ping=True)
+backend_engine = create_engine(settings.BACKEND_DATABASE_URL, pool_pre_ping=True)
 BackendSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=backend_engine)
 
 # Type: ignore needed here because declarative_base() returns a dynamic class

@@ -336,7 +336,8 @@ class IntegrationTestResult(BaseModel):
 
     # Execution details
     steps: list[ExecutionStep] = Field(default_factory=list)
-    final_active_states: list[str] = Field(default_factory=list, alias="finalActiveStates")
+    initial_states: list[str] = Field(default_factory=list, alias="initialStates")
+    final_states: list[str] = Field(default_factory=list, alias="finalStates")
 
     # Analysis
     coverage_data: CoverageData = Field(alias="coverageData")
@@ -410,9 +411,11 @@ async def run_integration_test(
 
         # Set execution mode to MOCK
         try:
-            from qontinui.config.execution_mode import (ExecutionModeConfig,
-                                                        MockMode,
-                                                        set_execution_mode)
+            from qontinui.config.execution_mode import (
+                ExecutionModeConfig,
+                MockMode,
+                set_execution_mode,
+            )
 
             set_execution_mode(ExecutionModeConfig(mode=MockMode.MOCK))
             logger.info("Execution mode set to MOCK")
@@ -455,8 +458,7 @@ async def run_integration_test(
         # Get historical data client for reliability insights
         historical_client = None
         try:
-            from qontinui.mock.historical_data_client import \
-                get_historical_data_client
+            from qontinui.mock.historical_data_client import get_historical_data_client
 
             historical_client = get_historical_data_client()
         except ImportError as e:
@@ -663,11 +665,13 @@ async def run_integration_test(
     total_transitions = len(request.workflow.transitions)
     total_actions = len(request.workflow.actions)
 
+    # Coverage is based on states and transitions only (core state machine elements)
+    # Actions are tracked separately as they represent test execution
     coverage_percentage = 0.0
-    if total_states + total_transitions + total_actions > 0:
+    if total_states + total_transitions > 0:
         coverage_percentage = (
-            (len(states_visited) + len(transitions_executed) + len(actions_executed))
-            / (total_states + total_transitions + total_actions)
+            (len(states_visited) + len(transitions_executed))
+            / (total_states + total_transitions)
             * 100
         )
 
@@ -716,7 +720,8 @@ async def run_integration_test(
         completed_at=completed_at,
         total_duration_ms=total_duration,
         steps=steps,
-        final_active_states=list(current_active_states),
+        initial_states=initial_states,
+        final_states=list(current_active_states),
         coverage_data=coverage_data,
         reliability_insights=reliability_insights,
         stochasticity_warnings=stochasticity_warnings,
@@ -741,8 +746,7 @@ async def health_check() -> dict[str, Any]:
         pass
 
     try:
-        from qontinui.mock.historical_data_client import \
-            get_historical_data_client
+        from qontinui.mock.historical_data_client import get_historical_data_client
 
         client = get_historical_data_client()
         historical_client_available = client.enabled
