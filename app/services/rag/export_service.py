@@ -1,8 +1,8 @@
 """Service for exporting and importing RAG configurations."""
 
-from datetime import datetime
 from typing import TYPE_CHECKING
 
+from qontinui_schemas.common import utc_now
 from sqlalchemy.orm import Session
 
 from app.services.rag.project_service import ProjectService
@@ -52,7 +52,7 @@ class ExportService:
             states=states,
             transitions=transitions,
             metadata=RAGExportMetadata(
-                exported_at=datetime.utcnow().isoformat(),
+                exported_at=utc_now().isoformat(),
                 version="1.0.0",
                 project_id=project_id,
             ),

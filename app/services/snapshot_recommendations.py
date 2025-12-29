@@ -1,8 +1,8 @@
 """Smart recommendation engine for selecting optimal snapshot combinations."""
 
-from datetime import datetime
 from typing import Any
 
+from qontinui_schemas.common import utc_now
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
@@ -213,7 +213,7 @@ class RecentAndDiverseStrategy(RecommendationStrategy):
             return [], 0.0, "No snapshots available"
 
         diversity_weight = 1.0 - recency_weight
-        now = datetime.utcnow()
+        now = utc_now()
 
         # Calculate recency scores
         recency_scores = {}
@@ -491,7 +491,7 @@ class SnapshotRecommendationService:
                 )
 
         return {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": utc_now().isoformat(),
             "available_snapshots": len(available_runs),
             "max_snapshots": max_snapshots,
             "recommendations": recommendations,

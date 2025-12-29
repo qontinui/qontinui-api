@@ -8,13 +8,13 @@ These endpoints interact with the main backend's database (qontinui_db).
 import logging
 import os
 import uuid
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 from dotenv import load_dotenv
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field, ValidationError
+from qontinui_schemas.common import utc_now
 from sqlalchemy import (
     JSON,
     Boolean,
@@ -74,8 +74,8 @@ class Project(BackendBase):
     is_public = Column(Boolean, nullable=False, default=False)
     owner_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
 
 
 # ============================================================================
@@ -429,7 +429,7 @@ def save_rag_config(db: Session, project: Project, rag_config: dict[str, Any]) -
         config = json.loads(config)
     config["rag_config"] = rag_config
     project.configuration = config  # type: ignore[assignment]
-    project.updated_at = datetime.utcnow()  # type: ignore[assignment]
+    project.updated_at = utc_now()  # type: ignore[assignment]
     db.commit()
     db.refresh(project)
 
@@ -540,7 +540,7 @@ async def create_element(
 
     # Generate ID and timestamps
     element_id = str(uuid.uuid4())
-    now = datetime.utcnow().isoformat()
+    now = utc_now().isoformat()
 
     # Create element with defaults for required fields
     element_data = data.model_dump(exclude_none=True)
@@ -650,7 +650,7 @@ async def update_element(
     element_data = elements[element_id]
     update_data = data.model_dump(exclude_none=True)
     element_data.update(update_data)
-    element_data["updated_at"] = datetime.utcnow().isoformat()
+    element_data["updated_at"] = utc_now().isoformat()
 
     element = RAGElement(**element_data)
     rag_config["elements"][element_id] = element.model_dump()
@@ -736,7 +736,7 @@ async def batch_generate_descriptions(
 
             # Update element data
             element_data["text_description"] = description
-            element_data["updated_at"] = datetime.utcnow().isoformat()
+            element_data["updated_at"] = utc_now().isoformat()
 
             updated_count += 1
 
@@ -777,7 +777,7 @@ async def create_state(
 
     # Generate ID and timestamps
     state_id = str(uuid.uuid4())
-    now = datetime.utcnow().isoformat()
+    now = utc_now().isoformat()
 
     state = RAGState(
         id=state_id,
@@ -834,7 +834,7 @@ async def update_state(
     state_data = states[state_id]
     update_data = data.model_dump(exclude_none=True)
     state_data.update(update_data)
-    state_data["updated_at"] = datetime.utcnow().isoformat()
+    state_data["updated_at"] = utc_now().isoformat()
 
     state = RAGState(**state_data)
     rag_config["states"][state_id] = state.model_dump()
@@ -893,7 +893,7 @@ async def create_transition(
 
     # Generate ID and timestamps
     transition_id = str(uuid.uuid4())
-    now = datetime.utcnow().isoformat()
+    now = utc_now().isoformat()
 
     transition = RAGTransition(
         id=transition_id,
@@ -951,7 +951,7 @@ async def update_transition(
     trans_data = transitions[transition_id]
     update_data = data.model_dump(exclude_none=True)
     trans_data.update(update_data)
-    trans_data["updated_at"] = datetime.utcnow().isoformat()
+    trans_data["updated_at"] = utc_now().isoformat()
 
     transition = RAGTransition(**trans_data)
     rag_config["transitions"][transition_id] = transition.model_dump()
@@ -1063,7 +1063,7 @@ async def export_project(
         states=states,
         transitions=transitions,
         metadata=RAGExportMetadata(
-            exported_at=datetime.utcnow().isoformat(),
+            exported_at=utc_now().isoformat(),
             version="1.0.0",
             project_id=project_id,
         ),

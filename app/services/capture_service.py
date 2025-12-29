@@ -8,9 +8,9 @@ This service provides:
 """
 
 import random
-from datetime import datetime
 from typing import Any, BinaryIO, Optional
 
+from qontinui_schemas.common import utc_now
 from sqlalchemy.orm import Session
 
 from app.models.capture import (
@@ -127,7 +127,7 @@ class CaptureService:
         stored_file = await self.storage.store_video(session_id, video_data, video_filename)
 
         # Update session
-        session.ended_at = datetime.utcnow()  # type: ignore[assignment]
+        session.ended_at = utc_now()  # type: ignore[assignment]
         session.duration_ms = int((session.ended_at - session.started_at).total_seconds() * 1000)  # type: ignore[assignment]
         session.video_path = stored_file.path  # type: ignore[assignment]
         session.video_size_bytes = stored_file.size_bytes  # type: ignore[assignment]

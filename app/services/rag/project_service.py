@@ -1,9 +1,9 @@
 """Project and RAG configuration management service."""
 
-from datetime import datetime
 from typing import Any
 
 from fastapi import HTTPException
+from qontinui_schemas.common import utc_now
 from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text, create_engine
 from sqlalchemy.dialects.postgresql import JSON, UUID
 from sqlalchemy.ext.declarative import declarative_base
@@ -35,8 +35,8 @@ class Project(BackendBase):
     rag_config = Column(JSON, nullable=True)
     owner_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
 
 
 def get_backend_db():
@@ -97,7 +97,7 @@ class ProjectService:
         """
         # SQLAlchemy Column attributes accept the actual values at runtime
         project.rag_config = rag_config  # type: ignore[assignment]
-        project.updated_at = datetime.utcnow()  # type: ignore[assignment]
+        project.updated_at = utc_now()  # type: ignore[assignment]
         db.commit()
         db.refresh(project)
 

@@ -1,10 +1,10 @@
 """Service for managing RAG elements."""
 
 import uuid
-from datetime import datetime
 from typing import TYPE_CHECKING
 
 from fastapi import HTTPException
+from qontinui_schemas.common import utc_now
 from sqlalchemy.orm import Session
 
 from app.services.rag.description_service import DescriptionService
@@ -85,7 +85,7 @@ class ElementService:
 
         # Generate ID and timestamps
         element_id = str(uuid.uuid4())
-        now = datetime.utcnow().isoformat()
+        now = utc_now().isoformat()
 
         # Create element with defaults for required fields
         element_data = data.model_dump(exclude_none=True)
@@ -215,7 +215,7 @@ class ElementService:
         element_data = elements[element_id]
         update_data = data.model_dump(exclude_none=True)
         element_data.update(update_data)
-        element_data["updated_at"] = datetime.utcnow().isoformat()
+        element_data["updated_at"] = utc_now().isoformat()
 
         element = RAGElement(**element_data)
         rag_config["elements"][element_id] = element.model_dump()

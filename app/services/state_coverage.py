@@ -10,6 +10,7 @@ Analyzes coverage metrics across snapshot runs to identify:
 from dataclasses import dataclass, field
 from datetime import datetime
 
+from qontinui_schemas.common import utc_now
 from sqlalchemy.orm import Session
 
 from app.models.snapshot import SnapshotAction, SnapshotRun
@@ -164,7 +165,7 @@ class StateCoverageAnalyzer:
             process_id=process_id,
             process_name=process_name,
             snapshot_run_ids=snapshot_run_ids,
-            analysis_time=datetime.utcnow(),
+            analysis_time=utc_now(),
             overall_coverage_percentage=round(overall_coverage, 2),
             total_states=len(all_states),
             covered_states=covered_states,
@@ -502,7 +503,7 @@ class StateCoverageAnalyzer:
             # Check if cache is still valid (less than 5 minutes old)
             cache_time = cached.get("cached_at")
             if cache_time:
-                age = (datetime.now() - datetime.fromisoformat(cache_time)).total_seconds()
+                age = (utc_now() - datetime.fromisoformat(cache_time)).total_seconds()
                 if age < 300:  # 5 minutes
                     return cached.get("report")
 
@@ -535,7 +536,7 @@ class StateCoverageAnalyzer:
         # Store in cache
         self._cache[cache_key] = {
             "report": report,
-            "cached_at": datetime.now().isoformat(),
+            "cached_at": utc_now().isoformat(),
         }
 
         # Clean old cache entries (keep last 100)

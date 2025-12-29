@@ -6,7 +6,6 @@ This provides semantic segmentation and description of UI elements.
 import base64
 import io
 import logging
-from datetime import datetime
 from typing import Any
 
 import cv2
@@ -14,6 +13,7 @@ import numpy as np
 from fastapi import APIRouter, HTTPException
 from PIL import Image
 from pydantic import BaseModel
+from qontinui_schemas.common import utc_now
 
 # Import real computer vision capabilities from qontinui
 try:
@@ -816,7 +816,7 @@ def _convert_qontinui_scene_to_api_objects(scene, processor_instance) -> list[Se
 async def process_screenshot(request: SemanticProcessRequest):
     """Process a screenshot for semantic analysis."""
     try:
-        start_time = datetime.now()
+        start_time = utc_now()
 
         # Decode image
         image = processor.decode_image(request.image)
@@ -864,13 +864,13 @@ async def process_screenshot(request: SemanticProcessRequest):
 
         # Create scene
         scene = SemanticScene(  # type: ignore[assignment]
-            timestamp=datetime.now().isoformat(),
+            timestamp=utc_now().isoformat(),
             object_count=len(objects),
             objects=objects,
         )
 
         # Calculate processing time
-        processing_time = (datetime.now() - start_time).total_seconds() * 1000
+        processing_time = (utc_now() - start_time).total_seconds() * 1000
 
         return SemanticProcessResponse(scene=scene, processing_time_ms=processing_time)
     except Exception as e:

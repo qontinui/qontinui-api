@@ -29,6 +29,7 @@ from uuid import UUID
 
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
+from qontinui_schemas.common import utc_now
 
 from app.core.config import settings
 
@@ -386,7 +387,7 @@ async def run_integration_test(
         IntegrationTestResult with detailed execution information
     """
     test_id = str(uuid.uuid4())
-    started_at = datetime.now()
+    started_at = utc_now()
     steps: list[ExecutionStep] = []
     stochasticity_warnings: list[StochasticityWarning] = []
     step_number = 0
@@ -441,7 +442,7 @@ async def run_integration_test(
         state_discovery_step = ExecutionStep(
             step_number=step_number,
             step_type=ExecutionStepType.STATE_DISCOVERY,
-            timestamp=datetime.now(),
+            timestamp=utc_now(),
             duration_ms=0,
             success=True,
             state_discovery=StateDiscoveryDetails(
@@ -565,7 +566,7 @@ async def run_integration_test(
             action_step = ExecutionStep(
                 step_number=step_number,
                 step_type=ExecutionStepType.ACTION,
-                timestamp=datetime.now(),
+                timestamp=utc_now(),
                 duration_ms=action_duration,
                 success=action_success,
                 action=ActionResult(
@@ -611,7 +612,7 @@ async def run_integration_test(
                 state_update_step = ExecutionStep(
                     step_number=step_number,
                     step_type=ExecutionStepType.STATE_UPDATE,
-                    timestamp=datetime.now(),
+                    timestamp=utc_now(),
                     duration_ms=0,
                     success=True,
                     transition_id=transition.id,
@@ -649,7 +650,7 @@ async def run_integration_test(
             ExecutionStep(
                 step_number=step_number,
                 step_type=ExecutionStepType.ERROR,
-                timestamp=datetime.now(),
+                timestamp=utc_now(),
                 duration_ms=0,
                 success=False,
                 error_message=str(e),
@@ -657,7 +658,7 @@ async def run_integration_test(
         )
         failure_count += 1
 
-    completed_at = datetime.now()
+    completed_at = utc_now()
     total_duration = (completed_at - started_at).total_seconds() * 1000
 
     # Calculate coverage

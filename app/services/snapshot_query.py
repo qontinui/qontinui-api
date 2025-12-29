@@ -3,6 +3,7 @@
 from datetime import datetime, timedelta
 from typing import Any
 
+from qontinui_schemas.common import utc_now
 from sqlalchemy import case, func
 from sqlalchemy.orm import Session
 
@@ -365,7 +366,7 @@ class SnapshotQueryService:
         Returns:
             Trends dictionary with time series data
         """
-        start_date = datetime.now() - timedelta(days=period_days)
+        start_date = utc_now() - timedelta(days=period_days)
 
         # Base query
         query = self.db.query(SnapshotRun).filter(SnapshotRun.start_time >= start_date)

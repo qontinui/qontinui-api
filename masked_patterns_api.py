@@ -7,7 +7,6 @@ import base64
 import io
 import logging
 import uuid
-from datetime import datetime
 from typing import Any, Literal
 
 import cv2
@@ -15,6 +14,7 @@ import numpy as np
 from fastapi import APIRouter, HTTPException
 from PIL import Image as PILImage
 from pydantic import BaseModel
+from qontinui_schemas.common import utc_now
 
 logger = logging.getLogger(__name__)
 
@@ -231,7 +231,7 @@ async def extract_masked_pattern(request: ExtractMaskedPatternRequest):
     """Extract a masked pattern from screenshots with pixel averaging."""
 
     logger.info(f"Received extraction request for pattern: {request.pattern_name}")
-    start_time = datetime.now()
+    start_time = utc_now()
 
     try:
         # Decode screenshots if provided
@@ -281,8 +281,8 @@ async def extract_masked_pattern(request: ExtractMaskedPatternRequest):
             maxConfidence=result["statistics"]["maxConfidence"],
             avgConfidence=result["statistics"]["avgConfidence"],
             stdDevConfidence=result["statistics"]["stdDevConfidence"],
-            createdAt=datetime.now().isoformat(),
-            updatedAt=datetime.now().isoformat(),
+            createdAt=utc_now().isoformat(),
+            updatedAt=utc_now().isoformat(),
         )
 
         # Store pattern with additional data (convert to lists in background)
@@ -294,7 +294,7 @@ async def extract_masked_pattern(request: ExtractMaskedPatternRequest):
             "confidence_map": result["confidence_map"],  # Keep as numpy array
         }
 
-        elapsed = (datetime.now() - start_time).total_seconds()
+        elapsed = (utc_now() - start_time).total_seconds()
         logger.info(f"Extracted masked pattern: {pattern_id} in {elapsed:.2f} seconds")
         logger.info(
             f"Pattern statistics: active_pixels={pattern.activePixels}, mask_density={pattern.maskDensity:.2%}"
@@ -420,7 +420,7 @@ async def update_pattern_threshold(pattern_id: str, request: UpdateThresholdRequ
             "maxConfidence": float(np.max(masked_confidence)),
             "avgConfidence": float(np.mean(masked_confidence)),
             "stdDevConfidence": float(np.std(masked_confidence)),
-            "updatedAt": datetime.now().isoformat(),
+            "updatedAt": utc_now().isoformat(),
         }
     )
 

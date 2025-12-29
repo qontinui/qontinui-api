@@ -5,6 +5,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
+from qontinui_schemas.common import utc_now
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -354,9 +355,9 @@ def get_top_patterns(
 
     elif metric == "success_rate":
         # Need to calculate success rates for all patterns
-        from datetime import datetime, timedelta
+        from datetime import timedelta
 
-        start_date = datetime.utcnow() - timedelta(days=period_days)
+        start_date = utc_now() - timedelta(days=period_days)
         from sqlalchemy import func
 
         from app.models.snapshot import SnapshotPattern, SnapshotRun

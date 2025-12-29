@@ -1,10 +1,10 @@
 """Service for managing RAG states."""
 
 import uuid
-from datetime import datetime
 from typing import TYPE_CHECKING
 
 from fastapi import HTTPException
+from qontinui_schemas.common import utc_now
 from sqlalchemy.orm import Session
 
 from app.services.rag.project_service import ProjectService
@@ -59,7 +59,7 @@ class StateService:
 
         # Generate ID and timestamps
         state_id = str(uuid.uuid4())
-        now = datetime.utcnow().isoformat()
+        now = utc_now().isoformat()
 
         state = RAGState(
             id=state_id,
@@ -136,7 +136,7 @@ class StateService:
         state_data = states[state_id]
         update_data = data.model_dump(exclude_none=True)
         state_data.update(update_data)
-        state_data["updated_at"] = datetime.utcnow().isoformat()
+        state_data["updated_at"] = utc_now().isoformat()
 
         state = RAGState(**state_data)
         rag_config["states"][state_id] = state.model_dump()

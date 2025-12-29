@@ -13,7 +13,6 @@ import os
 # Import State Discovery components from qontinui
 import sys
 import uuid
-from datetime import datetime
 from typing import Any
 
 import numpy as np
@@ -29,6 +28,7 @@ from fastapi import (
 from fastapi.responses import JSONResponse
 from PIL import Image as PILImage
 from pydantic import BaseModel
+from qontinui_schemas.common import utc_now
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -84,7 +84,7 @@ class StateDiscoveryStore:
         self.uploads[upload_id] = {
             "screenshots": screenshots,
             "metadata": metadata,
-            "timestamp": datetime.now(),
+            "timestamp": utc_now(),
         }
 
     def get_upload(self, upload_id: str):
@@ -115,7 +115,7 @@ class StateDiscoveryStore:
         # Store screenshot
         screenshot_data["id"] = screenshot_id
         screenshot_data["hash"] = hash_value
-        screenshot_data["created_at"] = datetime.now().isoformat()
+        screenshot_data["created_at"] = utc_now().isoformat()
 
         self.project_screenshots[project_id][screenshot_id] = screenshot_data
         self.screenshot_hashes[hash_value] = screenshot_id
@@ -623,8 +623,8 @@ async def get_analysis_status(analysis_id: str):
             "analysis_id": analysis_id,
             "status": "complete",
             "progress": {"percentage": 100, "stage": "complete"},
-            "started_at": datetime.now().isoformat(),
-            "updated_at": datetime.now().isoformat(),
+            "started_at": utc_now().isoformat(),
+            "updated_at": utc_now().isoformat(),
         }
 
     # Check if analysis exists but not complete
@@ -633,8 +633,8 @@ async def get_analysis_status(analysis_id: str):
             "analysis_id": analysis_id,
             "status": "processing",
             "progress": {"percentage": 50, "stage": "processing"},
-            "started_at": datetime.now().isoformat(),
-            "updated_at": datetime.now().isoformat(),
+            "started_at": utc_now().isoformat(),
+            "updated_at": utc_now().isoformat(),
         }
 
     raise HTTPException(status_code=404, detail="Analysis not found")
@@ -713,7 +713,7 @@ async def update_state_image(state_image_id: str, request: StateImageUpdateReque
         "y": request.y,
         "x2": request.x2,
         "y2": request.y2,
-        "updated_at": datetime.now().isoformat(),
+        "updated_at": utc_now().isoformat(),
     }
 
 
@@ -766,7 +766,7 @@ async def save_state_structure(request: SaveStructureRequest):
         "description": request.description,
         "states": [s.to_dict() for s in result.states],
         "state_images": [si.to_dict() for si in result.state_images],
-        "created_at": datetime.now().isoformat(),
+        "created_at": utc_now().isoformat(),
     }
 
     return {
@@ -775,7 +775,7 @@ async def save_state_structure(request: SaveStructureRequest):
         "name": request.name,
         "state_count": len(result.states),
         "state_image_count": len(result.state_images),
-        "created_at": datetime.now().isoformat(),
+        "created_at": utc_now().isoformat(),
     }
 
 
@@ -796,7 +796,7 @@ async def export_state_structure(
 
     return {
         "version": "1.0",
-        "exported_at": datetime.now().isoformat(),
+        "exported_at": utc_now().isoformat(),
         "structure": structure,
     }
 

@@ -5,9 +5,8 @@ Tests transition recording, coverage calculation, deficiency detection,
 and path exploration strategies.
 """
 
-from datetime import datetime
-
 import pytest
+from qontinui_schemas.common import utc_now
 
 
 class MockPathTracker:
@@ -26,7 +25,7 @@ class MockPathTracker:
             {
                 "from_state": from_state,
                 "to_state": to_state,
-                "timestamp": datetime.utcnow(),
+                "timestamp": utc_now(),
                 "metadata": metadata or {},
             }
         )

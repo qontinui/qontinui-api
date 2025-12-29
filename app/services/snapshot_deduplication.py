@@ -1,8 +1,8 @@
 """Duplicate detection service for identifying redundant snapshot runs."""
 
-from datetime import datetime
 from typing import Any
 
+from qontinui_schemas.common import utc_now
 from sqlalchemy.orm import Session
 
 from app.models.snapshot import SnapshotRun
@@ -246,7 +246,7 @@ class SnapshotDeduplicationService:
                     )
 
         return {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": utc_now().isoformat(),
             "strategy": keep_strategy,
             "duplicate_groups": len(duplicate_groups),
             "total_duplicates": len(delete_runs),

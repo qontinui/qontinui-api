@@ -1,10 +1,10 @@
 """Service for managing RAG transitions."""
 
 import uuid
-from datetime import datetime
 from typing import TYPE_CHECKING
 
 from fastapi import HTTPException
+from qontinui_schemas.common import utc_now
 from sqlalchemy.orm import Session
 
 from app.services.rag.project_service import ProjectService
@@ -73,7 +73,7 @@ class TransitionService:
 
         # Generate ID and timestamps
         transition_id = str(uuid.uuid4())
-        now = datetime.utcnow().isoformat()
+        now = utc_now().isoformat()
 
         transition = RAGTransition(
             id=transition_id,
@@ -155,7 +155,7 @@ class TransitionService:
         trans_data = transitions[transition_id]
         update_data = data.model_dump(exclude_none=True)
         trans_data.update(update_data)
-        trans_data["updated_at"] = datetime.utcnow().isoformat()
+        trans_data["updated_at"] = utc_now().isoformat()
 
         transition = RAGTransition(**trans_data)
         rag_config["transitions"][transition_id] = transition.model_dump()

@@ -4,13 +4,13 @@ Mask and Pattern API endpoints for State Discovery and Pattern Optimization
 
 import base64
 import io
-from datetime import datetime
 from typing import Any
 
 import numpy as np
 from fastapi import APIRouter, HTTPException
 from PIL import Image as PILImage
 from pydantic import BaseModel, Field
+from qontinui_schemas.common import utc_now
 
 # Import qontinui mask and pattern modules
 from qontinui.masks import MaskGenerator, MaskType
@@ -257,7 +257,7 @@ async def create_pattern(request: CreatePatternRequest):
             mask = np.ones(image.shape[:2], dtype=np.float32)
 
         # Generate unique ID
-        pattern_id = f"pattern_{len(_pattern_storage)}_{int(datetime.now().timestamp())}"
+        pattern_id = f"pattern_{len(_pattern_storage)}_{int(utc_now().timestamp())}"
 
         # Create Pattern
         pattern = Pattern(

@@ -16,6 +16,7 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
+from qontinui_schemas.common import utc_now
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -635,7 +636,7 @@ async def capture_current_screenshot(
             width=pil_image.width,
             height=pil_image.height,
             monitor=monitor,
-            timestamp=datetime.now(),
+            timestamp=utc_now(),
             format="png",
         )
 

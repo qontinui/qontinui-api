@@ -2,10 +2,10 @@
 
 import hashlib
 from collections import defaultdict
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from qontinui_schemas.common import utc_now
 from sqlalchemy.orm import Session
 
 from app.models.snapshot import SnapshotAction, SnapshotPattern, SnapshotRun
@@ -369,7 +369,7 @@ class SnapshotAnalysisService:
         complementarity = self.calculate_complementarity(run_ids)
 
         return {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": utc_now().isoformat(),
             "snapshot_count": len(run_ids),
             "individual_reports": individual_reports,
             "complementarity": complementarity,
