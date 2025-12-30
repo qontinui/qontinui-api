@@ -210,7 +210,7 @@ class ONNXInferenceEngine(InferenceEngine):
             import onnxruntime as ort
         except ImportError as err:
             raise ImportError(
-                "onnxruntime package not installed. " "Install with: pip install onnxruntime"
+                "onnxruntime package not installed. Install with: pip install onnxruntime"
             ) from err
 
         logger.info("Loading ONNX model")
@@ -418,7 +418,7 @@ class YOLOv8InferenceEngine(InferenceEngine):
             from ultralytics import YOLO
         except ImportError as err:
             raise ImportError(
-                "ultralytics package not installed. " "Install with: pip install ultralytics"
+                "ultralytics package not installed. Install with: pip install ultralytics"
             ) from err
 
         logger.info("Loading YOLOv8 model")

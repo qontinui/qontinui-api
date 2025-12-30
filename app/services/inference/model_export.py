@@ -92,7 +92,7 @@ class YOLOv8Exporter(ModelExporter):
             from ultralytics import YOLO
         except ImportError as err:
             raise ImportError(
-                "ultralytics package not installed. " "Install with: pip install ultralytics"
+                "ultralytics package not installed. Install with: pip install ultralytics"
             ) from err
 
         logger.info(f"Loading YOLOv8 model from {self.model_path}")
@@ -453,7 +453,7 @@ class YOLOv8Exporter(ModelExporter):
             import onnxruntime as ort
         except ImportError as err:
             raise ImportError(
-                "onnxruntime package not installed. " "Install with: pip install onnxruntime"
+                "onnxruntime package not installed. Install with: pip install onnxruntime"
             ) from err
 
         session = ort.InferenceSession(str(onnx_path))
@@ -690,9 +690,9 @@ def main():
 
     for fmt in args.format:
         try:
-            logger.info(f"\n{'='*60}")
+            logger.info(f"\n{'=' * 60}")
             logger.info(f"Exporting to {fmt.upper()}")
-            logger.info(f"{'='*60}\n")
+            logger.info(f"{'=' * 60}\n")
 
             if fmt == "onnx":
                 path = exporter.export_onnx(
@@ -738,13 +738,13 @@ def main():
             continue
 
     # Summary
-    logger.info(f"\n{'='*60}")
+    logger.info(f"\n{'=' * 60}")
     logger.info("Export Summary")
-    logger.info(f"{'='*60}")
+    logger.info(f"{'=' * 60}")
     logger.info(f"Successfully exported {len(exported_models)}/{len(args.format)} formats:")
     for fmt, path in exported_models.items():
         logger.info(f"  {fmt}: {path}")
-    logger.info(f"{'='*60}\n")
+    logger.info(f"{'=' * 60}\n")
 
 
 if __name__ == "__main__":

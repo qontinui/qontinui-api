@@ -209,9 +209,7 @@ class SnapshotPattern(Base):  # type: ignore[misc,valid-type]
     )
 
     def __repr__(self) -> str:
-        return (
-            f"<SnapshotPattern(run_id={self.snapshot_run_id}, " f"pattern_id='{self.pattern_id}')>"
-        )
+        return f"<SnapshotPattern(run_id={self.snapshot_run_id}, pattern_id='{self.pattern_id}')>"
 
 
 class SnapshotMatch(Base):  # type: ignore[misc,valid-type]

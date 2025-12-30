@@ -508,7 +508,7 @@ async def run_integration_test(
                                     pattern_id=action.pattern_id,
                                     action_id=action.id,
                                     warning_type="historical_failures",
-                                    message=f"Pattern has {(1-success_rate)*100:.1f}% historical failure rate",
+                                    message=f"Pattern has {(1 - success_rate) * 100:.1f}% historical failure rate",
                                     historical_failure_rate=1 - success_rate,
                                     recommendation="Consider adding retry logic or wait conditions",
                                 )

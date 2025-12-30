@@ -244,7 +244,7 @@ async def extract_masked_pattern(request: ExtractMaskedPatternRequest):
                 img_array = np.array(img)
                 screenshots.append(img_array)
                 logger.info(
-                    f"Decoded screenshot {i+1}/{len(request.screenshots)}, shape: {img_array.shape}"
+                    f"Decoded screenshot {i + 1}/{len(request.screenshots)}, shape: {img_array.shape}"
                 )
         else:
             # Mock screenshots for demo
