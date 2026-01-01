@@ -288,7 +288,7 @@ class SnapshotAnalysisService:
         if not screenshot_path.exists():
             return None
 
-        md5_hash = hashlib.md5()
+        md5_hash = hashlib.md5(usedforsecurity=False)
         with open(screenshot_path, "rb") as f:
             # Read in chunks to handle large files
             for chunk in iter(lambda: f.read(4096), b""):
