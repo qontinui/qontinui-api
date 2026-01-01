@@ -495,7 +495,9 @@ class StateCoverageAnalyzer:
             "snapshot_run_ids": sorted(snapshot_run_ids),
         }
         cache_key_str = json.dumps(cache_key_data, sort_keys=True)
-        cache_key = f"coverage:{hashlib.md5(cache_key_str.encode(), usedforsecurity=False).hexdigest()}"
+        cache_key = (
+            f"coverage:{hashlib.md5(cache_key_str.encode(), usedforsecurity=False).hexdigest()}"
+        )
 
         # Try to get from in-memory cache first
         if hasattr(self, "_cache") and cache_key in self._cache:
@@ -531,7 +533,9 @@ class StateCoverageAnalyzer:
             "snapshot_run_ids": sorted(report.snapshot_run_ids),
         }
         cache_key_str = json.dumps(cache_key_data, sort_keys=True)
-        cache_key = f"coverage:{hashlib.md5(cache_key_str.encode(), usedforsecurity=False).hexdigest()}"
+        cache_key = (
+            f"coverage:{hashlib.md5(cache_key_str.encode(), usedforsecurity=False).hexdigest()}"
+        )
 
         # Store in cache
         self._cache[cache_key] = {
