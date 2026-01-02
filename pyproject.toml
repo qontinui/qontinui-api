@@ -115,3 +115,8 @@ addopts = [
     "--cov-report=xml",
     "-v",
 ]
+
+[tool.isort]
+profile = "black"
+line_length = 100
+known_first_party = ["app", "qontinui"]
