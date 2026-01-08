@@ -595,7 +595,7 @@ async def detect_states(request: StateDetectionRequest):
                     find.screenshot(screenshot_img)
 
                     # Execute find
-                    match = find.find()
+                    match = await find.find()
 
                     if match and match.exists():
                         state_found = True
@@ -666,7 +666,7 @@ async def validate_location(
 
             find = Find(template_img)
             find.screenshot(screenshot_img)
-            match = find.find()
+            match = await find.find()
 
             if match and match.exists():
                 # Get the match region
