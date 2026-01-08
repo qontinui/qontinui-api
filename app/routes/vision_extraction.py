@@ -601,13 +601,13 @@ def merge_results(
         )
 
     # Convert SAM3 results
-    for r in sam3_results:
-        category = classify_sam3_result(r)
+    for sam3_r in sam3_results:
+        category = classify_sam3_result(sam3_r)
         candidates.append(
             ExtractedCandidate(
-                id=r.id,
-                bbox=r.bbox,
-                confidence=r.stability_score,
+                id=sam3_r.id,
+                bbox=sam3_r.bbox,
+                confidence=sam3_r.stability_score,
                 category=category,
                 detection_technique="sam3",
                 is_clickable=category in ["button", "icon"],
@@ -615,15 +615,15 @@ def merge_results(
         )
 
     # Convert OCR results
-    for r in ocr_results:
-        category = classify_ocr_result(r)
+    for ocr_r in ocr_results:
+        category = classify_ocr_result(ocr_r)
         candidates.append(
             ExtractedCandidate(
-                id=r.id,
-                bbox=r.bbox,
-                confidence=r.confidence,
+                id=ocr_r.id,
+                bbox=ocr_r.bbox,
+                confidence=ocr_r.confidence,
                 category=category,
-                text=r.text,
+                text=ocr_r.text,
                 detection_technique="ocr",
                 is_clickable=category in ["button", "link"],
             )

@@ -277,7 +277,7 @@ async def build_state_machine(
         clickables = [c for c in clickables if c.get("match_confidence", 0) >= min_confidence]
 
     # Group by page URL (if available)
-    pages: dict[str, list[dict]] = {}
+    pages: dict[str, list[dict[str, Any]]] = {}
     for clickable in clickables:
         # Use a default page key if no URL info
         page_key = "default"
@@ -286,13 +286,8 @@ async def build_state_machine(
     # Build states
     states = []
     for i, (_page_key, page_clickables) in enumerate(pages.items()):
-        state = {
-            "id": f"state_{uuid.uuid4().hex[:8]}",
-            "name": f"{state_name_prefix}_{i + 1}",
-            "description": f"Auto-discovered state with {len(page_clickables)} elements",
-            "stateImages": [],
-            "stateLocations": [],
-        }
+        state_images: list[dict[str, Any]] = []
+        state_locations: list[dict[str, Any]] = []
 
         for clickable in page_clickables:
             # Create StateImage entry
@@ -304,7 +299,7 @@ async def build_state_machine(
                 "searchRegion": clickable["bounding_box"],
                 "similarity": clickable.get("match_confidence", 0.85),
             }
-            state["stateImages"].append(state_image)
+            state_images.append(state_image)
 
             # Create StateLocation entry (click point)
             bbox = clickable["bounding_box"]
@@ -314,8 +309,15 @@ async def build_state_machine(
                 "x": bbox["x"] + bbox["width"] // 2,
                 "y": bbox["y"] + bbox["height"] // 2,
             }
-            state["stateLocations"].append(state_location)
+            state_locations.append(state_location)
 
+        state = {
+            "id": f"state_{uuid.uuid4().hex[:8]}",
+            "name": f"{state_name_prefix}_{i + 1}",
+            "description": f"Auto-discovered state with {len(page_clickables)} elements",
+            "stateImages": state_images,
+            "stateLocations": state_locations,
+        }
         states.append(state)
 
     return {
@@ -461,13 +463,13 @@ async def _run_single_page_extraction(job_id: str, request: SinglePageExtraction
         extraction_jobs[job_id]["error"] = str(e)
 
 
-def _serialize_clickable(clickable) -> dict[str, Any]:
+def _serialize_clickable(clickable: Any) -> dict[str, Any]:
     """Serialize an ExtractedClickable to JSON-compatible dict."""
     import io
 
     from PIL import Image as PILImage
 
-    result = clickable.to_dict()
+    result: dict[str, Any] = clickable.to_dict()
 
     # Convert screenshot to base64 if present
     if clickable.screenshot is not None:
