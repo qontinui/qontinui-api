@@ -154,8 +154,14 @@ class RealSemanticProcessor:
         # Try to initialize CLIP directly if not available through qontinui
         if not self.clip_generator and CLIP_AVAILABLE:
             try:
-                self.clip_model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
-                self.clip_processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
+                # Pin to specific revision to prevent supply chain attacks
+                model_revision = "e8d94b80c81df0da8022e9b43c7b5dd058e7a682"
+                self.clip_model = CLIPModel.from_pretrained(
+                    "openai/clip-vit-base-patch32", revision=model_revision
+                )
+                self.clip_processor = CLIPProcessor.from_pretrained(
+                    "openai/clip-vit-base-patch32", revision=model_revision
+                )
                 self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
                 self.clip_model = self.clip_model.to(self.device)
                 logger.info("Initialized CLIP model for semantic descriptions")
@@ -302,13 +308,17 @@ class RealSemanticProcessor:
 
     def _segment_with_qontinui(self, image: np.ndarray) -> list[SemanticObject]:
         """Segment using qontinui's screen segmenter."""
-        objects = []
+        objects: list[SemanticObject] = []
 
-        # Convert to PIL Image for qontinui
-        pil_image = Image.fromarray(image)
+        # Null check for segmenter
+        if self.segmenter is None:
+            return objects
+
+        # Convert RGB to BGR for qontinui (expects BGR format)
+        bgr_image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
 
         # Get segments from qontinui
-        segments = self.segmenter.segment_screen(pil_image)
+        segments = self.segmenter.segment_screen(bgr_image)
 
         for idx, segment in enumerate(segments):
             # Convert segment to SemanticObject
@@ -335,16 +345,18 @@ class RealSemanticProcessor:
         objects = []
 
         if self.ocr_engine:
-            # Use EasyOCR
+            # Use EasyOCR via qontinui's EasyOCREngine interface
             try:
-                results = self.ocr_engine.readtext(image)
-                for idx, (bbox, text, confidence) in enumerate(results):
-                    # Convert bbox points to x, y, width, height
-                    points = np.array(bbox)
-                    x = int(points[:, 0].min())
-                    y = int(points[:, 1].min())
-                    w = int(points[:, 0].max() - x)
-                    h = int(points[:, 1].max() - y)
+                # Convert numpy array to PIL Image for EasyOCREngine
+                pil_image = Image.fromarray(image)
+                # Use get_text_regions which returns TextRegion objects
+                text_regions = self.ocr_engine.get_text_regions(
+                    pil_image, min_confidence=options.min_confidence
+                )
+                for idx, region in enumerate(text_regions):
+                    text = region.text
+                    x, y, w, h = region.x, region.y, region.width, region.height
+                    confidence = region.confidence
 
                     obj = SemanticObject(
                         id=f"text_{idx}_{x}_{y}",
@@ -411,10 +423,9 @@ class RealSemanticProcessor:
     def _generate_clip_description(self, image_region: np.ndarray, element_type: str) -> str:
         """Generate semantic description using CLIP."""
         if self.clip_generator:
-            # Use qontinui's CLIP generator
+            # Use qontinui's CLIP generator (expects numpy array)
             try:
-                pil_image = Image.fromarray(image_region)
-                description = self.clip_generator.generate(pil_image)
+                description = self.clip_generator.generate(image_region)
                 return str(description)
             except Exception as e:
                 logger.warning(f"CLIP generation failed: {e}")
