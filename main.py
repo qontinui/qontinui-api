@@ -41,6 +41,9 @@ from app.routes.snapshot_search import router as snapshot_search_router
 # Import Snapshot API routers
 from app.routes.snapshots import router as snapshots_router
 
+# Import Vision Extraction router
+from app.routes.vision_extraction import router as vision_extraction_router
+
 # Authentication is handled by qontinui-web/backend
 # This API is stateless and focuses on qontinui library operations
 # Import Mask and Pattern API router
@@ -69,6 +72,9 @@ from semantic_api import router as semantic_router
 
 # Import State Discovery API router
 from state_discovery_api import router as state_discovery_router
+
+# Import Web Extraction API router
+from web_extraction_api import router as web_extraction_router
 
 # Logger for this module
 logger = logging.getLogger(__name__)
@@ -189,6 +195,9 @@ app.include_router(semantic_router, prefix="/api")
 # Include State Discovery router
 app.include_router(state_discovery_router, prefix="/api")
 
+# Include Web Extraction router
+app.include_router(web_extraction_router, prefix="/api")
+
 
 app.include_router(embeddings_router, prefix="/api")
 
@@ -213,6 +222,9 @@ app.include_router(pathfinding_router, prefix="/api")
 
 # Include Integration Testing router (model-based GUI automation testing)
 app.include_router(integration_testing_router, prefix="/api/v1")
+
+# Include Vision Extraction router (SAM3, Edge Detection, OCR)
+app.include_router(vision_extraction_router, prefix="/api")
 
 
 # All user/project management endpoints are handled by qontinui-web/backend
@@ -1909,3 +1921,4 @@ if __name__ == "__main__":
 
     # Port 8001 for qontinui-api (port 8000 is reserved for main backend)
     uvicorn.run(app, host="0.0.0.0", port=8001)
+# Force reload $(date)
