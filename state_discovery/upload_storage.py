@@ -5,6 +5,7 @@ Single Responsibility: Manage temporary storage of uploaded screenshots.
 """
 
 import logging
+import time
 import uuid
 from dataclasses import dataclass
 
@@ -101,10 +102,32 @@ class UploadStorage:
         """List all upload IDs."""
         return list(self.uploads.keys())
 
-    def clear_old_uploads(self, _max_age_seconds: float = 3600):
-        """Clear uploads older than specified age."""
-        # TODO: Implementation would check timestamps and remove old uploads
-        pass
+    def clear_old_uploads(self, max_age_seconds: float = 3600) -> int:
+        """Clear uploads older than specified age.
+
+        Args:
+            max_age_seconds: Maximum age in seconds. Uploads older than this will be removed.
+                           Defaults to 3600 (1 hour).
+
+        Returns:
+            Number of uploads removed.
+        """
+        current_time = time.time()
+        expired_ids: list[str] = []
+
+        for upload_id, upload in self.uploads.items():
+            age = current_time - upload.timestamp
+            if age > max_age_seconds:
+                expired_ids.append(upload_id)
+
+        for upload_id in expired_ids:
+            del self.uploads[upload_id]
+            logger.debug(f"[STORAGE] Cleared expired upload {upload_id}")
+
+        if expired_ids:
+            logger.info(f"Cleared {len(expired_ids)} expired uploads")
+
+        return len(expired_ids)
 
 
 # Global instance
