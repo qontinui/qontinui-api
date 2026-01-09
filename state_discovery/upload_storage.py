@@ -101,9 +101,9 @@ class UploadStorage:
         """List all upload IDs."""
         return list(self.uploads.keys())
 
-    def clear_old_uploads(self, max_age_seconds: float = 3600):
+    def clear_old_uploads(self, _max_age_seconds: float = 3600):
         """Clear uploads older than specified age."""
-        # Implementation would check timestamps and remove old uploads
+        # TODO: Implementation would check timestamps and remove old uploads
         pass
 
 

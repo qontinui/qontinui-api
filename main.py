@@ -943,7 +943,7 @@ async def execute_mock_action(
     request: Request,
     session_id: str,
     action_type: str,
-    action_config: dict[str, Any] | None = None,
+    _action_config: dict[str, Any] | None = None,
 ):
     """Execute an action using snapshots (integration testing)"""
     session = get_session(session_id)

@@ -731,7 +731,7 @@ async def delete_bulk_state_images(request: BulkDeleteRequest):
 
 @router.post("/state-image/merge")
 async def merge_state_images(
-    source_ids: list[str], target_name: str, merge_strategy: str = "union"
+    source_ids: list[str], target_name: str, _merge_strategy: str = "union"
 ):
     """Merge multiple StateImages."""
     # Mock implementation
@@ -781,7 +781,7 @@ async def save_state_structure(request: SaveStructureRequest):
 
 @router.get("/export/{structure_id}")
 async def export_state_structure(
-    structure_id: str, format: str = "json", include_images: bool = False
+    structure_id: str, format: str = "json", _include_images: bool = False
 ):
     """Export state structure."""
     # Find structure

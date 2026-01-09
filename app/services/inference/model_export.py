@@ -63,7 +63,7 @@ class ModelExporter:
 
     def validate_export(
         self,
-        original_model_path: Path,
+        _original_model_path: Path,
         exported_model_path: Path,
         test_image: Path | None = None,
     ) -> bool:
@@ -71,7 +71,7 @@ class ModelExporter:
         Validate exported model against original.
 
         Args:
-            original_model_path: Path to original model
+            _original_model_path: Path to original model (unused in base class)
             exported_model_path: Path to exported model
             test_image: Optional test image for comparison
 
@@ -381,7 +381,7 @@ class YOLOv8Exporter(ModelExporter):
 
     def validate_export(
         self,
-        original_model_path: Path,
+        _original_model_path: Path,
         exported_model_path: Path,
         test_image: Path | None = None,
     ) -> bool:
@@ -389,7 +389,7 @@ class YOLOv8Exporter(ModelExporter):
         Validate exported model against original.
 
         Args:
-            original_model_path: Path to original model
+            _original_model_path: Path to original model (unused - uses self.model)
             exported_model_path: Path to exported model
             test_image: Optional test image for comparison
 
