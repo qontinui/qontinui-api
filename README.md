@@ -1,5 +1,13 @@
 # Qontinui API Service
 
+> **Maintenance Mode Notice**
+>
+> This package is in **maintenance mode**. The recommended approach for GUI automation is now the **qontinui-runner** with direct IPC to the qontinui library, which provides better performance and tighter integration.
+>
+> This package remains available for developers who want HTTP API access to qontinui functionality. No new features will be added, but critical bug fixes may be applied.
+>
+> **Important:** This package depends on the `qontinui` core library, which is not yet published to PyPI. For local development, install qontinui from source alongside this package.
+
 REST API service that exposes real qontinui library image recognition capabilities for web-based testing.
 
 ## Features

@@ -5,8 +5,8 @@ priority = "explicit"
 
 [tool.poetry]
 name = "qontinui-api"
-version = "0.1.1"
-description = "REST API service for Qontinui GUI automation"
+version = "0.2.0"
+description = "REST API service for Qontinui GUI automation (maintenance mode)"
 authors = ["Joshua Spinak <jspinak@alum.mit.edu>"]
 license = "MIT"
 readme = "README.md"
@@ -15,7 +15,7 @@ repository = "https://github.com/qontinui/qontinui-api"
 documentation = "https://github.com/qontinui/qontinui-api#readme"
 keywords = ["gui", "automation", "api", "fastapi", "qontinui"]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 7 - Inactive",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
@@ -45,9 +45,11 @@ email-validator = "^2.3.0"
 easyocr = "^1.7.0"
 redis = "^7.1.0"
 slowapi = "^0.1.9"
-qontinui = {path = "../qontinui", develop = true}
-qontinui-schemas = {path = "../qontinui-schemas", develop = true}
-multistate = {path = "../multistate", develop = true}
+# NOTE: These dependencies are not yet published to PyPI.
+# For local development, install them from source.
+# qontinui = {path = "../qontinui", develop = true}
+# qontinui-schemas = {path = "../qontinui-schemas", develop = true}
+# multistate = {path = "../multistate", develop = true}
 torch = {version = "^2.5", source = "pytorch-cuda"}
 torchvision = {version = "^0.20", source = "pytorch-cuda"}
 aiofiles = "^25.1.0"
