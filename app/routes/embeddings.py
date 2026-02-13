@@ -311,15 +311,13 @@ async def compute_embedding(request: ComputeEmbeddingRequest) -> ComputeEmbeddin
 async def compute_text_embedding_endpoint(
     request: ComputeTextEmbeddingRequest,
 ) -> ComputeTextEmbeddingResponse:
-    """Compute CLIP text embedding for semantic search.
+    """Compute text embedding for semantic search.
 
-    This endpoint encodes text using CLIP's text encoder, producing a
-    512-dimensional embedding in the same space as CLIP image embeddings.
-    This enables semantic text-to-image search against indexed visual content.
+    Supports two models:
+    - model="clip" (default): CLIP text encoder, 512-dim, same space as image embeddings
+    - model="minilm": MiniLM-L6-v2, 384-dim, optimized for text-to-text similarity
 
-    Use this for:
-    - Searching visual content by text description
-    - Finding patterns/UI elements that match a query
+    Use CLIP for text-to-image search, MiniLM for text-to-text search.
     """
     start_time = time.time()
 
@@ -331,7 +329,10 @@ async def compute_text_embedding_endpoint(
                 processing_time_ms=(time.time() - start_time) * 1000,
             )
 
-        embedding = compute_clip_text_embedding(request.text)
+        if request.model == "minilm":
+            embedding = compute_text_embedding(request.text)
+        else:
+            embedding = compute_clip_text_embedding(request.text)
 
         if embedding is None:
             return ComputeTextEmbeddingResponse(
