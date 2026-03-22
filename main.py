@@ -28,6 +28,9 @@ from app.core.config import settings
 from app.routes.capture import router as capture_router
 from app.routes.embeddings import router as embeddings_router
 
+# Import Cascade Detection router (SSE stream for supervisor dashboard)
+from app.routes.execution.cascade_router import router as cascade_router
+
 # Import Integration Testing router
 from app.routes.integration_testing import router as integration_testing_router
 
@@ -225,6 +228,9 @@ app.include_router(integration_testing_router, prefix="/api/v1")
 
 # Include Vision Extraction router (SAM3, Edge Detection, OCR)
 app.include_router(vision_extraction_router, prefix="/api")
+
+# Include Cascade Detection events router (SSE for supervisor dashboard)
+app.include_router(cascade_router, prefix="/api")
 
 
 # All user/project management endpoints are handled by qontinui-web/backend
