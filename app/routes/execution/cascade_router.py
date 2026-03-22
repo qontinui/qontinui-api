@@ -91,7 +91,7 @@ async def stream_cascade_events():
     """
 
     async def event_generator():
-        queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue(maxsize=500)
+        queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue(maxsize=50)
         _subscribers.append(queue)
         try:
             # Send recent events as initial burst
