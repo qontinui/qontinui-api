@@ -420,8 +420,8 @@ async def find_image(request: Request, find_request: FindRequest):
         # Configure filters
         filters = [SimilarityFilter(min_similarity=find_request.similarity)]
 
-        # Create executor
-        executor = FindExecutor(
+        # Create executor with cascade for accessibility support
+        executor = FindExecutor.with_cascade(
             screenshot_provider=screenshot_provider,
             matcher=matcher,
             filters=filters,  # type: ignore[arg-type]
@@ -507,8 +507,8 @@ async def find_all_images(request: Request, find_request: FindRequest):
             NMSFilter(iou_threshold=0.3),
         ]
 
-        # Create executor
-        executor = FindExecutor(  # type: ignore[arg-type]
+        # Create executor with cascade for accessibility support
+        executor = FindExecutor.with_cascade(  # type: ignore[arg-type]
             screenshot_provider=screenshot_provider, matcher=matcher, filters=filters
         )
 
